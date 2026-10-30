@@ -1,9 +1,14 @@
 /**
- * dsh-workflow-kit — 工作流面板
+ * dsh-workflow-kit — 右侧栏「工作台」
  *
- * 把「模式判据」和「skill 路由」做成可查的界面，不用翻文档。
- * 纯静态数据：内容与 modes/*.md、skills/ROUTING.md 保持一致，
- * 改完那两处后同步更新本文件即可。
+ * 显示当前会话的实时工作状态，不是文档：
+ *   · 当前模式（来自 session header 的 agentPreset）
+ *   · 会话状态与轮次
+ *   · TODO 进度
+ *   · 最近动作时间线（工具调用）
+ *   · 子代理调用计数
+ *
+ * 所有数据提取都是防御式的：拿不到就降级显示，不抛错。
  */
 window.__ModuleLoader__.load({
   id: '@local/dsh-workflow-kit',
@@ -11,123 +16,127 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
 
-    // ── 数据 ───────────────────────────────────────────────
+    const TAB_ID = 'workflow-kit'
+    const TAB_KIND = 'workflow-kit'
 
-    const MODES = [
-      {
-        id: 'brownfield',
-        name: '存量深化',
-        tag: '最常用',
-        tone: 'warn',
-        when: '目标处已有能跑的基线（代码 / 实验 / 文献集），你还不完全掌握它',
-        rules: [
-          '先摸基线再动手 —— 不读清结构就改 = 瞎改',
-          '能跑才算完成 —— 改完必须跑原有测试/构建',
-          '最小改动 —— 不顺手重构、不调格式',
-          '先查调用方再改签名 —— 避免修好 A 坏了 B',
-          '先复现再修 —— 没有复现的修复等于猜',
-          '尊重既有约定 —— 一致性优于局部最优',
-        ],
-        delegate: '强委派：调研 / 独立模块改造 / 多 bug 排查 / 回归验证都可派',
-        keep: '自己留：架构级取舍、跨模块接口变更、风险区改动',
-      },
-      {
-        id: 'greenfield',
-        name: '从零开始',
-        tag: '',
-        tone: 'ok',
-        when: '目标处是空的，或只有无关文件；需要从空白设计并搭建',
-        rules: [
-          '先定接口再写实现 —— 签名/数据结构/边界先确定',
-          '最小可行 —— 先端到端跑通，再加功能',
-          '快速验证假设 —— 库能不能用、API 长什么样，先用最小实验验证',
-          '不过度设计 —— YAGNI，不造工厂、不留扩展点',
-          '一次一件事 —— 不相关改动分开做、分次验证',
-        ],
-        delegate: '轻委派：接口已定死后的具体实现、样板代码、独立模块测试',
-        keep: '自己留：接口设计、模块划分、技术选型、调试关键路径',
-      },
-    ]
+    // ── 工具函数（全部防御式）─────────────────────────────
 
-    const SKILLS = [
-      { group: '强制', items: [
-        { name: 'verification-before-completion', desc: '没当场跑过验证，不许说"通过"', when: '声称完成前' },
-      ]},
-      { group: '协作', items: [
-        { name: 'dispatching-parallel-agents', desc: '2+ 互不依赖的任务并行派', when: '多个独立模块/bug' },
-        { name: 'subagent-driven-development', desc: '每任务 fresh 执行者 + 任务级审查', when: '按计划执行多任务' },
-        { name: 'writing-plans', desc: '多步骤任务先写计划', when: '需求明确但步骤多' },
-        { name: 'executing-plans', desc: '在独立会话执行计划', when: '换会话继续做' },
-      ]},
-      { group: '诊断与调研', items: [
-        { name: 'systematic-debugging', desc: '系统化定位，别急着改', when: '报错 / 测试失败' },
-        { name: 'baseline-survey', desc: '摸清基线，产出 survey/*.md', when: '接手不熟的项目' },
-      ]},
-      { group: '领域（需另装）', items: [
-        { name: 'sci-figure-kit', desc: '科研绘图（figkit / R / omicverse）', when: '出图、期刊配图' },
-        { name: 'lit-search-strategy', desc: '检索策略（PICO/SPIDER）', when: '系统检索、综述检索' },
-        { name: 'lit-deep-reading', desc: '论文精读（Keshav 三遍法）', when: '读论文、做笔记' },
-        { name: 'lit-review-writing', desc: '批判性综述写作', when: '写文献综述' },
-        { name: 'nature-writing', desc: 'Nature 风格论文写作', when: '写正文、投稿材料' },
-        { name: 'nature-polishing', desc: '学术润色 / 中译英', when: '润色、改写' },
-        { name: 'nature-citation', desc: '加 Nature/CNS 引用', when: '正文加引用' },
-      ]},
-    ]
-
-    const FLOW = [
-      { step: '1', title: '判断模式', desc: '先查 brownfield，不匹配再看 greenfield', hint: '误判成 greenfield 的代价更高' },
-      { step: '2', title: '摸清基线', desc: '存量项目先跑 baseline-survey，主代理只读摘要', hint: '不读就改 = 瞎改' },
-      { step: '3', title: '拆任务 + 写任务书', desc: '每个子任务自包含，写明用什么领域 skill', hint: '子代理不继承你的上下文' },
-      { step: '4', title: '派发', desc: '独立上下文用 spawn，要继承决策用 fork', hint: '互不依赖的同一批并发派' },
-      { step: '5', title: '收三行证据', desc: '改了什么 / 凭什么说对 / 最不确定的一点', hint: '只查第 3 条，信息密度最高' },
-      { step: '6', title: '验证后交付', desc: '跑 verification-before-completion', hint: '没有命令输出 = 没完成' },
-    ]
-
-    // ── 样式 ───────────────────────────────────────────────
-
-    const C = {
-      page: { padding: '20px 24px', maxWidth: 980, margin: '0 auto', fontFamily: 'inherit' },
-      head: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 },
-      title: { fontSize: 18, fontWeight: 600, margin: 0, color: 'var(--dsw-alias-label-primary)' },
-      sub: { fontSize: 12.5, color: 'var(--dsw-alias-label-secondary)', margin: '0 0 16px' },
-      tabs: { display: 'flex', gap: 6, marginBottom: 16, borderBottom: '1px solid var(--dsw-alias-border-l1)' },
-      tab: {
-        padding: '7px 14px', border: 'none', background: 'transparent', cursor: 'pointer',
-        fontSize: 13, color: 'var(--dsw-alias-label-secondary)',
-        borderBottom: '2px solid transparent', marginBottom: -1,
-      },
-      tabOn: { color: 'var(--dsw-alias-brand-primary)', borderBottom: '2px solid var(--dsw-alias-brand-primary)', fontWeight: 600 },
-      card: {
-        border: '1px solid var(--dsw-alias-border-l1)', borderRadius: 10, padding: '14px 16px',
-        marginBottom: 12, background: 'var(--dsw-alias-bg-l1)',
-      },
-      cardHead: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 },
-      cardTitle: { fontSize: 14.5, fontWeight: 600, color: 'var(--dsw-alias-label-primary)' },
-      chip: {
-        fontSize: 11, padding: '2px 7px', borderRadius: 20,
-        background: 'var(--dsw-alias-bg-l2)', color: 'var(--dsw-alias-label-secondary)',
-      },
-      chipWarn: { background: 'rgba(230,160,40,.16)', color: '#b8791a' },
-      chipOk: { background: 'rgba(60,170,110,.16)', color: '#2f8a5b' },
-      label: { fontSize: 11.5, fontWeight: 600, color: 'var(--dsw-alias-label-secondary)', margin: '10px 0 4px' },
-      li: { fontSize: 13, lineHeight: 1.75, color: 'var(--dsw-alias-label-primary)', margin: 0, paddingLeft: 16 },
-      meta: { fontSize: 12.5, color: 'var(--dsw-alias-label-secondary)', lineHeight: 1.7 },
-      row: { display: 'grid', gridTemplateColumns: '160px 1fr 130px', gap: 10, alignItems: 'baseline',
-        padding: '7px 0', borderBottom: '1px dashed var(--dsw-alias-border-l1)' },
-      code: { fontSize: 12, fontFamily: 'ui-monospace, Consolas, monospace', color: 'var(--dsw-alias-brand-primary)' },
-      step: {
-        display: 'flex', gap: 12, alignItems: 'flex-start', padding: '10px 0',
-        borderBottom: '1px dashed var(--dsw-alias-border-l1)',
-      },
-      stepNo: {
-        flex: '0 0 26px', height: 26, borderRadius: '50%', display: 'flex',
-        alignItems: 'center', justifyContent: 'center', fontSize: 12.5, fontWeight: 600,
-        background: 'var(--dsw-alias-bg-l2)', color: 'var(--dsw-alias-brand-primary)',
-      },
-      note: { fontSize: 12, color: 'var(--dsw-alias-label-secondary)', marginTop: 14, lineHeight: 1.7 },
+    const isObj = (v) => typeof v === 'object' && v !== null
+    const asArray = (v) => (Array.isArray(v) ? v : [])
+    const safe = (fn, fallback) => {
+      try {
+        const r = fn()
+        return r === undefined || r === null ? fallback : r
+      } catch (e) {
+        return fallback
+      }
     }
 
-    // ── 图标 ───────────────────────────────────────────────
+    /** 从任意层级的对象里找 agentPreset（session header 里叫这个） */
+    function findPreset() {
+      const roots = Array.prototype.slice.call(arguments)
+      for (let i = 0; i < roots.length; i++) {
+        const root = roots[i]
+        const v = safe(
+          () => root && (root.agentPreset ?? root.header?.agentPreset ?? root.session?.header?.agentPreset),
+          undefined,
+        )
+        if (typeof v === 'string' && v) return v
+      }
+      return null
+    }
+
+    /** 从对话节点里抽工具调用 */
+    function collectToolCalls(nodes) {
+      const out = []
+      const list = asArray(nodes)
+      for (let i = 0; i < list.length; i++) {
+        const n = list[i]
+        if (!isObj(n)) continue
+        const name = safe(() => n.name ?? n.toolName ?? n.data?.name ?? n.call?.name, null)
+        if (!name) continue
+        const kind = n.kind ?? n.type
+        if (kind === 'tool-call' || kind === 'tool' || n.callId || n.call) {
+          out.push({ name: String(name) })
+        }
+      }
+      return out
+    }
+
+    /** 从对话节点里抽最后一次 todo 状态 */
+    function lastTodo(nodes) {
+      let latest = null
+      const list = asArray(nodes)
+      for (let i = 0; i < list.length; i++) {
+        const n = list[i]
+        const name = safe(() => n?.name ?? n?.toolName ?? n?.data?.name, null)
+        if (name !== 'todo_write') continue
+        const items = safe(() => {
+          const raw = n?.result?.value ?? n?.data?.result?.value ?? n?.output ?? n?.result
+          const l = Array.isArray(raw) ? raw : raw?.todos ?? raw?.items
+          return Array.isArray(l) ? l : null
+        }, null)
+        if (items) latest = items
+      }
+      return latest
+    }
+
+    function todoSummary(items) {
+      const list = asArray(items)
+      if (!list.length) return null
+      let done = 0
+      let doing = 0
+      for (let i = 0; i < list.length; i++) {
+        const s = safe(() => String(list[i].status ?? list[i].state ?? ''), '')
+        if (s === 'completed' || s === 'done') done++
+        else if (s === 'in_progress' || s === 'doing' || s === 'in-progress') doing++
+      }
+      return { total: list.length, done, doing, items: list }
+    }
+
+    // ── 样式 ──────────────────────────────────────────────
+
+    const C = {
+      page: { padding: '12px 14px', fontSize: 12.5, color: 'var(--dsw-alias-label-primary)' },
+      row: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '5px 0' },
+      k: { color: 'var(--dsw-alias-label-secondary)', fontSize: 12 },
+      v: { fontWeight: 600, fontSize: 12.5 },
+      sec: { marginTop: 14 },
+      secTitle: {
+        fontSize: 11, fontWeight: 600, letterSpacing: '.4px', textTransform: 'uppercase',
+        color: 'var(--dsw-alias-label-secondary)', marginBottom: 6,
+      },
+      card: {
+        border: '1px solid var(--dsw-alias-border-l1)', borderRadius: 8,
+        padding: '8px 10px', marginBottom: 8, background: 'var(--dsw-alias-bg-l1)',
+      },
+      badge: {
+        display: 'inline-flex', alignItems: 'center', gap: 5,
+        fontSize: 11.5, padding: '2px 8px', borderRadius: 20,
+        background: 'var(--dsw-alias-bg-l2)', color: 'var(--dsw-alias-label-primary)',
+      },
+      dot: {
+        width: 7, height: 7, borderRadius: '50%',
+        background: 'var(--dsw-alias-label-secondary)',
+        display: 'inline-block',
+      },
+      dotOn: {
+        width: 7, height: 7, borderRadius: '50%',
+        background: '#3caa6e', boxShadow: '0 0 0 3px rgba(60,170,110,.18)',
+        display: 'inline-block',
+      },
+      bar: { height: 5, borderRadius: 3, background: 'var(--dsw-alias-bg-l2)', overflow: 'hidden', marginTop: 5 },
+      item: { display: 'flex', gap: 6, alignItems: 'baseline', padding: '3px 0', fontSize: 12 },
+      empty: { fontSize: 12, color: 'var(--dsw-alias-label-secondary)', fontStyle: 'italic', padding: '4px 0' },
+      mono: { fontFamily: 'ui-monospace, Consolas, monospace', fontSize: 11.5 },
+      tl: {
+        fontSize: 11.5, color: 'var(--dsw-alias-label-secondary)', padding: '2px 0',
+        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+      },
+      note: { marginTop: 12, fontSize: 10.5, color: 'var(--dsw-alias-label-secondary)', lineHeight: 1.6 },
+    }
+
+    // ── 图标 ──────────────────────────────────────────────
 
     function PanelIcon(props) {
       const size = (props && props.size) || 18
@@ -135,88 +144,138 @@ window.__ModuleLoader__.load({
         width: size, height: size, viewBox: '0 0 24 24', fill: 'none',
         stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round',
       },
-        h('rect', { x: 3, y: 3, width: 7, height: 7, rx: 1.5 }),
-        h('rect', { x: 14, y: 3, width: 7, height: 7, rx: 1.5 }),
-        h('rect', { x: 3, y: 14, width: 7, height: 7, rx: 1.5 }),
-        h('path', { d: 'M17.5 14v7M14 17.5h7' }))
+      h('path', { d: 'M3 17l5-5 4 3 5-7' }),
+      h('circle', { cx: 20, cy: 5, r: 1.6 }),
+      h('path', { d: 'M3 21h18' }))
     }
 
-    // ── 面板 ───────────────────────────────────────────────
+    // ── 主面板 ────────────────────────────────────────────
 
     function makePanel() {
-      return function WorkflowPanel() {
-        const [tab, setTab] = React.useState('modes')
+      return function WorkbenchPanel(props) {
+        const p = isObj(props) ? props : {}
 
-        const modesView = () =>
-          h('div', null,
-            MODES.map((m) => h('div', { key: m.id, style: C.card },
-              h('div', { style: C.cardHead },
-                h('span', { style: C.cardTitle }, m.name),
-                h('code', { style: C.code }, m.id),
-                m.tag ? h('span', { style: Object.assign({}, C.chip, C.chipWarn) }, m.tag) : null),
-              h('div', { style: C.meta }, m.when),
-              h('div', { style: C.label }, '核心判据'),
-              h('ul', { style: { margin: 0, paddingLeft: 18 } },
-                m.rules.map((r, i) => h('li', { key: i, style: C.li }, r))),
-              h('div', { style: C.label }, '委派'),
-              h('div', { style: C.meta }, m.delegate),
-              h('div', { style: C.meta }, m.keep))),
-            h('p', { style: C.note },
-              '判定顺序：先查 brownfield，不匹配再看 greenfield。',
-              '因为把存量项目当新项目做（重复造轮子、破坏既有约定）的代价，远高于把新项目多花几分钟确认"确实是空的"。'))
+        const status = safe(() => {
+          const s = typeof p.useSessionStatus === 'function' ? p.useSessionStatus() : p.sessionStatus
+          if (typeof s === 'string') return s
+          if (isObj(s)) return s.status ?? s.state ?? (s.running ? 'running' : 'idle')
+          return null
+        }, null)
 
-        const skillsView = () =>
-          h('div', null,
-            SKILLS.map((g) => h('div', { key: g.group, style: C.card },
-              h('div', { style: C.cardHead }, h('span', { style: C.cardTitle }, g.group)),
-              g.items.map((s) => h('div', { key: s.name, style: C.row },
-                h('code', { style: C.code }, s.name),
-                h('span', { style: { fontSize: 12.5, color: 'var(--dsw-alias-label-primary)' } }, s.desc),
-                h('span', { style: { fontSize: 11.5, color: 'var(--dsw-alias-label-secondary)' } }, s.when))))),
-            h('p', { style: C.note },
-              '领域 skill 不随本包分发，需自行安装到 ~/.dsh/skills/。',
-              '目录名必须匹配 ^[a-z0-9]+(?:-[a-z0-9]+)*$ —— 中文名会被静默跳过。'))
+        const sessionSnap = safe(() => (typeof p.useSession === 'function' ? p.useSession() : null), null)
+        const conv = safe(() => (typeof p.useConversation === 'function' ? p.useConversation() : null), null)
+        const nodes = safe(() => conv?.nodes ?? conv?.items ?? conv?.chat?.nodes ?? [], [])
+        const messages = safe(() => conv?.messages ?? [], [])
+        const sessions = safe(() => (typeof p.useSessions === 'function' ? p.useSessions() : null), null)
 
-        const flowView = () =>
-          h('div', null,
-            h('div', { style: C.card },
-              FLOW.map((f) => h('div', { key: f.step, style: C.step },
-                h('div', { style: C.stepNo }, f.step),
-                h('div', null,
-                  h('div', { style: { fontSize: 13.5, fontWeight: 600, color: 'var(--dsw-alias-label-primary)' } }, f.title),
-                  h('div', { style: C.meta }, f.desc),
-                  h('div', { style: { fontSize: 11.5, color: 'var(--dsw-alias-label-secondary)', marginTop: 2 } }, '· ' + f.hint))))),
-            h('p', { style: C.note },
-              '完整文档：modes/MODES.md（模式库）、modes/brownfield.md、modes/greenfield.md、skills/ROUTING.md（skill 路由）。'))
+        const preset = findPreset(sessionSnap, sessions?.current, p.session, p)
+        const calls = collectToolCalls(nodes)
+        const todos = todoSummary(lastTodo(nodes))
+        const subCalls = calls.filter((c) => c.name === 'subagent' || c.name === 'subagent_fork' || c.name === 'spawn_teammate')
 
-        const TABS = [['modes', '模式'], ['skills', 'Skill 路由'], ['flow', '任务流程']]
+        const running = status === 'running' || status === 'busy' || status === 'streaming'
+        const statusText = status === null ? '—' : running ? '运行中' : '空闲'
+
+        const modeDesc =
+          preset === 'brownfield' ? '存量深化 · 先摸基线 · 强委派'
+            : preset === 'greenfield' ? '从零开始 · 先定接口 · 轻委派'
+              : ''
+
+        const pct = todos && todos.total ? (todos.done / todos.total) * 100 : 0
 
         return h('div', { style: C.page },
-          h('div', { style: C.head },
-            h('span', { style: { color: 'var(--dsw-alias-brand-primary)', display: 'flex' } }, h(PanelIcon, { size: 20 })),
-            h('h1', { style: C.title }, '工作流')),
-          h('p', { style: C.sub }, '模式决定怎么工作 · skill 决定用什么能力 · 领域能力随任务流动'),
-          h('div', { style: C.tabs },
-            TABS.map(([id, label]) => h('button', {
-              key: id, type: 'button',
-              style: Object.assign({}, C.tab, tab === id ? C.tabOn : null),
-              onClick: () => setTab(id),
-            }, label))),
-          tab === 'modes' ? modesView() : tab === 'skills' ? skillsView() : flowView())
+          h('div', { style: C.row },
+            h('span', { style: C.k }, '状态'),
+            h('span', { style: { display: 'flex', alignItems: 'center', gap: 6 } },
+              h('span', { style: running ? C.dotOn : C.dot }),
+              h('span', { style: C.v }, statusText))),
+
+          h('div', { style: C.row },
+            h('span', { style: C.k }, '模式'),
+            h('span', { style: C.badge }, preset || '未知')),
+          modeDesc ? h('div', { style: { fontSize: 11, color: 'var(--dsw-alias-label-secondary)' } }, modeDesc) : null,
+
+          h('div', { style: C.row },
+            h('span', { style: C.k }, '消息'),
+            h('span', { style: C.v }, String(asArray(messages).length))),
+          h('div', { style: C.row },
+            h('span', { style: C.k }, '工具调用'),
+            h('span', { style: C.v }, String(calls.length))),
+          h('div', { style: C.row },
+            h('span', { style: C.k }, '子代理'),
+            h('span', { style: C.v }, String(subCalls.length))),
+
+          h('div', { style: C.sec },
+            h('div', { style: C.secTitle }, '任务进度'),
+            todos
+              ? h('div', { style: C.card },
+                  h('div', { style: { display: 'flex', justifyContent: 'space-between', fontSize: 11.5 } },
+                    h('span', null, todos.done + ' / ' + todos.total + ' 完成'),
+                    todos.doing ? h('span', { style: { color: '#b8791a' } }, todos.doing + ' 进行中') : null),
+                  h('div', { style: C.bar },
+                    h('div', { style: { width: Math.max(0, Math.min(100, pct)) + '%', height: '100%', background: '#3caa6e' } })),
+                  asArray(todos.items).slice(0, 8).map((it, i) => {
+                    const s = safe(() => String(it.status ?? ''), '')
+                    const mark = s === 'completed' ? '✓' : s === 'in_progress' ? '◐' : '○'
+                    const color = s === 'completed' ? '#2f8a5b' : s === 'in_progress' ? '#b8791a' : 'var(--dsw-alias-label-secondary)'
+                    return h('div', { key: i, style: C.item },
+                      h('span', { style: { flex: '0 0 14px', color: color } }, mark),
+                      h('span', { style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } },
+                        safe(() => String(it.content ?? it.text ?? it.title ?? ''), '')))
+                  }))
+              : h('div', { style: C.empty }, '还没有任务清单')),
+
+          h('div', { style: C.sec },
+            h('div', { style: C.secTitle }, '最近动作'),
+            calls.length
+              ? h('div', { style: C.card },
+                  calls.slice(-8).reverse().map((c, i) =>
+                    h('div', { key: i, style: C.tl }, h('span', { style: C.mono }, c.name))))
+              : h('div', { style: C.empty }, '还没有工具调用')),
+
+          !preset || !nodes.length
+            ? h('div', { style: C.note },
+                '数据不全时显示 —。',
+                h('br'),
+                'hooks：status=' + (typeof p.useSessionStatus === 'function' ? '✓' : '✗'),
+                ' session=' + (typeof p.useSession === 'function' ? '✓' : '✗'),
+                ' conversation=' + (typeof p.useConversation === 'function' ? '✓' : '✗'))
+            : null)
       }
     }
 
-    // ── 注册 ───────────────────────────────────────────────
+    function TitleComponent(props) {
+      const preset = findPreset(isObj(props) ? props : {})
+      return h('span', null, preset ? '工作台 · ' + preset : '工作台')
+    }
+
+    // ── 注册 ──────────────────────────────────────────────
 
     return {
       inject: ['slots'],
       apply(ctx) {
-        ctx.slots.inject('sidebar.panellist', () =>
-          ctx.slots.register(
-            { name: 'sidebar.panellist', id: 'workflow-kit', order: 15, label: () => '工作流' },
-            PanelIcon))
-        ctx.slots.inject('main', () =>
-          ctx.slots.register({ name: 'main', key: 'workflow-kit' }, makePanel()))
+        ctx.inject(['sidebarRightTabs'], (scoped) => {
+          const tabs = safe(() => scoped.sidebarRightTabs, null)
+          if (!tabs || typeof tabs.register !== 'function') return
+
+          tabs.register({
+            id: TAB_ID,
+            kind: TAB_KIND,
+            title: () => '工作台',
+            guide: [{
+              order: 15,
+              title: () => '工作台',
+              description: () => '当前模式、任务进度、子代理与最近动作',
+              icon: PanelIcon,
+            }],
+          })
+
+          scoped.slots.inject('sidebar.right.pane.tab', () =>
+            scoped.slots.register({ name: 'sidebar.right.pane.tab', key: TAB_ID }, makePanel()))
+
+          scoped.slots.inject('sidebar.right.pane.tab.title', () =>
+            scoped.slots.register({ name: 'sidebar.right.pane.tab.title', key: TAB_ID }, TitleComponent))
+        })
       },
     }
   },
