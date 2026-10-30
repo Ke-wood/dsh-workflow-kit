@@ -150,97 +150,110 @@ window.__ModuleLoader__.load({
     }
 
     // ── 主面板 ────────────────────────────────────────────
+    //
+    // React 规则：hook 必须在组件顶层无条件调用、且顺序稳定。
+    // 所以拆成两层——Guarded 先确认 hooks 存在，Workbench 里再无条件调用。
+
+    function Workbench(props) {
+      // 无条件调用（顺序固定），Guarded 已保证存在
+      const statusRaw = props.useSessionStatus()
+      const sessionSnap = props.useSession()
+      const conv = props.useConversation()
+      const sessions = props.useSessions()
+
+      const status = isObj(statusRaw)
+        ? (statusRaw.status ?? statusRaw.state ?? (statusRaw.running ? 'running' : 'idle'))
+        : (typeof statusRaw === 'string' ? statusRaw : null)
+
+      const nodes = safe(() => conv?.nodes ?? conv?.items ?? conv?.chat?.nodes ?? [], [])
+      const messages = safe(() => conv?.messages ?? [], [])
+
+      const preset = findPreset(sessionSnap, sessions?.current, props.session)
+      const calls = collectToolCalls(nodes)
+      const todos = todoSummary(lastTodo(nodes))
+      const subCalls = calls.filter(
+        (c) => c.name === 'subagent' || c.name === 'subagent_fork' || c.name === 'spawn_teammate')
+
+      const running = status === 'running' || status === 'busy' || status === 'streaming'
+      const statusText = status === null ? '—' : running ? '运行中' : '空闲'
+
+      const modeDesc =
+        preset === 'brownfield' ? '存量深化 · 先摸基线 · 强委派'
+          : preset === 'greenfield' ? '从零开始 · 先定接口 · 轻委派'
+            : ''
+
+      const pct = todos && todos.total ? (todos.done / todos.total) * 100 : 0
+
+      return h('div', { style: C.page },
+        h('div', { style: C.row },
+          h('span', { style: C.k }, '状态'),
+          h('span', { style: { display: 'flex', alignItems: 'center', gap: 6 } },
+            h('span', { style: running ? C.dotOn : C.dot }),
+            h('span', { style: C.v }, statusText))),
+
+        h('div', { style: C.row },
+          h('span', { style: C.k }, '模式'),
+          h('span', { style: C.badge }, preset || '未设置')),
+        modeDesc ? h('div', { style: { fontSize: 11, color: 'var(--dsw-alias-label-secondary)' } }, modeDesc) : null,
+
+        h('div', { style: C.row },
+          h('span', { style: C.k }, '消息'),
+          h('span', { style: C.v }, String(asArray(messages).length))),
+        h('div', { style: C.row },
+          h('span', { style: C.k }, '工具调用'),
+          h('span', { style: C.v }, String(calls.length))),
+        h('div', { style: C.row },
+          h('span', { style: C.k }, '子代理'),
+          h('span', { style: C.v }, String(subCalls.length))),
+
+        h('div', { style: C.sec },
+          h('div', { style: C.secTitle }, '任务进度'),
+          todos
+            ? h('div', { style: C.card },
+                h('div', { style: { display: 'flex', justifyContent: 'space-between', fontSize: 11.5 } },
+                  h('span', null, todos.done + ' / ' + todos.total + ' 完成'),
+                  todos.doing ? h('span', { style: { color: '#b8791a' } }, todos.doing + ' 进行中') : null),
+                h('div', { style: C.bar },
+                  h('div', {
+                    style: {
+                      width: Math.max(0, Math.min(100, pct)) + '%',
+                      height: '100%',
+                      background: '#3caa6e',
+                    },
+                  })),
+                asArray(todos.items).slice(0, 8).map((it, i) => {
+                  const s = safe(() => String(it.status ?? ''), '')
+                  const mark = s === 'completed' ? '✓' : s === 'in_progress' ? '◐' : '○'
+                  const color = s === 'completed' ? '#2f8a5b'
+                    : s === 'in_progress' ? '#b8791a' : 'var(--dsw-alias-label-secondary)'
+                  return h('div', { key: i, style: C.item },
+                    h('span', { style: { flex: '0 0 14px', color: color } }, mark),
+                    h('span', { style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } },
+                      safe(() => String(it.content ?? it.text ?? it.title ?? ''), '')))
+                }))
+            : h('div', { style: C.empty }, '还没有任务清单')),
+
+        h('div', { style: C.sec },
+          h('div', { style: C.secTitle }, '最近动作'),
+          calls.length
+            ? h('div', { style: C.card },
+                calls.slice(-8).reverse().map((c, i) =>
+                  h('div', { key: i, style: C.tl }, h('span', { style: C.mono }, c.name))))
+            : h('div', { style: C.empty }, '还没有工具调用')))
+    }
 
     function makePanel() {
-      return function WorkbenchPanel(props) {
+      return function Guarded(props) {
         const p = isObj(props) ? props : {}
+        const needed = ['useSessionStatus', 'useSession', 'useConversation', 'useSessions']
+        const missing = needed.filter((k) => typeof p[k] !== 'function')
 
-        const status = safe(() => {
-          const s = typeof p.useSessionStatus === 'function' ? p.useSessionStatus() : p.sessionStatus
-          if (typeof s === 'string') return s
-          if (isObj(s)) return s.status ?? s.state ?? (s.running ? 'running' : 'idle')
-          return null
-        }, null)
-
-        const sessionSnap = safe(() => (typeof p.useSession === 'function' ? p.useSession() : null), null)
-        const conv = safe(() => (typeof p.useConversation === 'function' ? p.useConversation() : null), null)
-        const nodes = safe(() => conv?.nodes ?? conv?.items ?? conv?.chat?.nodes ?? [], [])
-        const messages = safe(() => conv?.messages ?? [], [])
-        const sessions = safe(() => (typeof p.useSessions === 'function' ? p.useSessions() : null), null)
-
-        const preset = findPreset(sessionSnap, sessions?.current, p.session, p)
-        const calls = collectToolCalls(nodes)
-        const todos = todoSummary(lastTodo(nodes))
-        const subCalls = calls.filter((c) => c.name === 'subagent' || c.name === 'subagent_fork' || c.name === 'spawn_teammate')
-
-        const running = status === 'running' || status === 'busy' || status === 'streaming'
-        const statusText = status === null ? '—' : running ? '运行中' : '空闲'
-
-        const modeDesc =
-          preset === 'brownfield' ? '存量深化 · 先摸基线 · 强委派'
-            : preset === 'greenfield' ? '从零开始 · 先定接口 · 轻委派'
-              : ''
-
-        const pct = todos && todos.total ? (todos.done / todos.total) * 100 : 0
-
-        return h('div', { style: C.page },
-          h('div', { style: C.row },
-            h('span', { style: C.k }, '状态'),
-            h('span', { style: { display: 'flex', alignItems: 'center', gap: 6 } },
-              h('span', { style: running ? C.dotOn : C.dot }),
-              h('span', { style: C.v }, statusText))),
-
-          h('div', { style: C.row },
-            h('span', { style: C.k }, '模式'),
-            h('span', { style: C.badge }, preset || '未知')),
-          modeDesc ? h('div', { style: { fontSize: 11, color: 'var(--dsw-alias-label-secondary)' } }, modeDesc) : null,
-
-          h('div', { style: C.row },
-            h('span', { style: C.k }, '消息'),
-            h('span', { style: C.v }, String(asArray(messages).length))),
-          h('div', { style: C.row },
-            h('span', { style: C.k }, '工具调用'),
-            h('span', { style: C.v }, String(calls.length))),
-          h('div', { style: C.row },
-            h('span', { style: C.k }, '子代理'),
-            h('span', { style: C.v }, String(subCalls.length))),
-
-          h('div', { style: C.sec },
-            h('div', { style: C.secTitle }, '任务进度'),
-            todos
-              ? h('div', { style: C.card },
-                  h('div', { style: { display: 'flex', justifyContent: 'space-between', fontSize: 11.5 } },
-                    h('span', null, todos.done + ' / ' + todos.total + ' 完成'),
-                    todos.doing ? h('span', { style: { color: '#b8791a' } }, todos.doing + ' 进行中') : null),
-                  h('div', { style: C.bar },
-                    h('div', { style: { width: Math.max(0, Math.min(100, pct)) + '%', height: '100%', background: '#3caa6e' } })),
-                  asArray(todos.items).slice(0, 8).map((it, i) => {
-                    const s = safe(() => String(it.status ?? ''), '')
-                    const mark = s === 'completed' ? '✓' : s === 'in_progress' ? '◐' : '○'
-                    const color = s === 'completed' ? '#2f8a5b' : s === 'in_progress' ? '#b8791a' : 'var(--dsw-alias-label-secondary)'
-                    return h('div', { key: i, style: C.item },
-                      h('span', { style: { flex: '0 0 14px', color: color } }, mark),
-                      h('span', { style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } },
-                        safe(() => String(it.content ?? it.text ?? it.title ?? ''), '')))
-                  }))
-              : h('div', { style: C.empty }, '还没有任务清单')),
-
-          h('div', { style: C.sec },
-            h('div', { style: C.secTitle }, '最近动作'),
-            calls.length
-              ? h('div', { style: C.card },
-                  calls.slice(-8).reverse().map((c, i) =>
-                    h('div', { key: i, style: C.tl }, h('span', { style: C.mono }, c.name))))
-              : h('div', { style: C.empty }, '还没有工具调用')),
-
-          !preset || !nodes.length
-            ? h('div', { style: C.note },
-                '数据不全时显示 —。',
-                h('br'),
-                'hooks：status=' + (typeof p.useSessionStatus === 'function' ? '✓' : '✗'),
-                ' session=' + (typeof p.useSession === 'function' ? '✓' : '✗'),
-                ' conversation=' + (typeof p.useConversation === 'function' ? '✓' : '✗'))
-            : null)
+        if (missing.length) {
+          return h('div', { style: C.page },
+            h('div', { style: C.secTitle }, '工作台'),
+            h('div', { style: C.empty }, '缺少 hooks：' + missing.join(', ')))
+        }
+        return h(Workbench, p)
       }
     }
 
@@ -254,11 +267,23 @@ window.__ModuleLoader__.load({
     return {
       inject: ['slots'],
       apply(ctx) {
+        // body + title 直接注册在主 ctx 上（放在 inject 回调里可能不生效）
+        ctx.slots.inject('sidebar.right.pane.tab', () =>
+          ctx.slots.register(
+            { name: 'sidebar.right.pane.tab', key: TAB_ID },
+            makePanel()))
+
+        ctx.slots.inject('sidebar.right.pane.tab.title', () =>
+          ctx.slots.register(
+            { name: 'sidebar.right.pane.tab.title', key: TAB_ID },
+            TitleComponent))
+
+        // tab 定义注册到 sidebarRightTabs 服务
         ctx.inject(['sidebarRightTabs'], (scoped) => {
           const tabs = safe(() => scoped.sidebarRightTabs, null)
           if (!tabs || typeof tabs.register !== 'function') return
 
-          tabs.register({
+          safe(() => tabs.register({
             id: TAB_ID,
             kind: TAB_KIND,
             title: () => '工作台',
@@ -268,13 +293,7 @@ window.__ModuleLoader__.load({
               description: () => '当前模式、任务进度、子代理与最近动作',
               icon: PanelIcon,
             }],
-          })
-
-          scoped.slots.inject('sidebar.right.pane.tab', () =>
-            scoped.slots.register({ name: 'sidebar.right.pane.tab', key: TAB_ID }, makePanel()))
-
-          scoped.slots.inject('sidebar.right.pane.tab.title', () =>
-            scoped.slots.register({ name: 'sidebar.right.pane.tab.title', key: TAB_ID }, TitleComponent))
+          }), undefined)
         })
       },
     }
