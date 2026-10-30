@@ -5,29 +5,41 @@
 >
 > 位置建议：`~/.dsh/AGENTS.md` 引用本文件，或直接并入 AGENTS.md（表体 ~40 行）。
 
+## 图例
+
+| 标记 | 含义 |
+|---|---|
+| （无标记） | **本包自带**，装好即可用 |
+| 🅴 | **需自行安装**（领域 skill，本包有意不含，见 README 说明） |
+
+> 领域 skill 不随包分发的原因：它们的 `description` 常驻每轮对话，
+> 9 个文献/写作类合计约 1,733 tokens，占全部目录税的 77%。
+> 需要时单独安装，路由表会自动生效。
+
 ---
 
 ## 一、按任务信号路由
 
 | 你要做的事 | 用哪个 skill | 关键触发词 | 何时不用 |
 |---|---|---|---|
-| **文献检索 / 找论文** | `nature-academic-search` | 查文献、找文献、PubMed、arXiv | 只查 1 篇已知 DOI |
-| **建立检索策略**（系统综述级） | `lit-search-strategy` | 帮我搜文献、关键词搜不到、系统综述检索 | 随手搜几个词 |
-| **读一篇论文 / 精读** | `paper-reader` 或 `lit-deep-reading` | 读论文、读一下、分析文献 | 只看摘要 |
-| **中英文对照全文翻译** | `nature-reader` | 翻译论文、对照、全文翻译 | 只需结论 |
-| **建文献笔记系统** | `lit-deep-reading` | 文献笔记、怎么读、值不值得深读 | 一次性阅读 |
-| **写文献综述** | `lit-review-writing` | 帮我写综述、综述怎么写、被说成堆砌 | 只需罗列引用 |
-| **给正文加引用** | `nature-citation` | 加引用、找支持文献、CNS 引用 | 已有完整参考文献 |
-| **写论文正文** | `nature-writing` | 写引言、写摘要、写方法、投稿材料 | 只改一两句 |
-| **润色 / 改写英文** | `nature-polishing` | 润色、改写、翻译成英文、proofread | 重写结构（用 writing） |
+| **文献检索 / 找论文** 🅴 | `nature-academic-search` | 查文献、找文献、PubMed、arXiv | 只查 1 篇已知 DOI |
+| **建立检索策略**（系统综述级）🅴 | `lit-search-strategy` | 帮我搜文献、关键词搜不到、系统综述检索 | 随手搜几个词 |
+| **读一篇论文 / 精读** 🅴 | `paper-reader` 或 `lit-deep-reading` | 读论文、读一下、分析文献 | 只看摘要 |
+| **中英文对照全文翻译** 🅴 | `nature-reader` | 翻译论文、对照、全文翻译 | 只需结论 |
+| **建文献笔记系统** 🅴 | `lit-deep-reading` | 文献笔记、怎么读、值不值得深读 | 一次性阅读 |
+| **写文献综述** 🅴 | `lit-review-writing` | 帮我写综述、综述怎么写、被说成堆砌 | 只需罗列引用 |
+| **给正文加引用** 🅴 | `nature-citation` | 加引用、找支持文献、CNS 引用 | 已有完整参考文献 |
+| **写论文正文** 🅴 | `nature-writing` | 写引言、写摘要、写方法、投稿材料 | 只改一两句 |
+| **润色 / 改写英文** 🅴 | `nature-polishing` | 润色、改写、翻译成英文、proofread | 重写结构（用 writing） |
 | **画图 / 期刊配图** | `sci-figure-kit` | 画图、出图、火山图、热图、UMAP | 只要数据表 |
+| **摸清已有项目基线** | `baseline-survey` | 深入调研、摸清项目、还能怎么做 | 从零新建项目 |
 | **并行多个独立任务** | `dispatching-parallel-agents` | 多个独立、并行、无依赖 | 任务强耦合 |
 | **按计划执行多任务** | `subagent-driven-development` | 执行计划、多任务、逐任务 | 单任务 |
 | **写实施计划** | `writing-plans` | 写计划、方案、拆解 | 已有计划 |
 | **在另一会话执行计划** | `executing-plans` | 换会话执行、review 检查点 | 同会话（用 subagent-driven） |
 | **调试 bug / 测试失败** | `systematic-debugging` | 报错、失败、不工作、异常 | 已知一行修复 |
 | **声称完成之前** | `verification-before-completion` | 完成、修好、通过、可以提交 | — **强制** |
-| **做 Office 文档** | `office` → `office-docx`/`office-xlsx`/`office-pptx` | Word、Excel、PPT、docx | 纯文本 |
+| **做 Office 文档** 🅴 | `office` → `office-docx`/`office-xlsx`/`office-pptx` | Word、Excel、PPT、docx | 纯文本 |
 | **转 PDF** | `office-export-pdf` | 转 PDF、导出 PDF | — |
 | **渲染文档看图** | `office-render` | 渲染、看看排版 | — |
 

@@ -11,9 +11,10 @@
 |---|---|
 | `index.js` | 注册 skills 目录的 Host 插件 |
 | `cordis.patch.yml` | 五个 agent preset 声明 |
-| `skills/baseline-survey/` | 基线调研 skill（原创） |
-| `skills/ROUTING.md` | skill 路由表（原创） |
-| `skills/sci-figure-kit/` | 科研绘图工具箱（原创） |
+| `skills/baseline-survey/` | 基线调研 skill |
+| `skills/sci-figure-kit/` | 科研绘图工具箱 |
+| `skills/kit-selftest/` | 自包含探针（仅包内存在） |
+| `skills/ROUTING.md` | skill 路由表 |
 
 Copyright (c) 2026 Ke wood
 
@@ -41,63 +42,24 @@ Copyright (c) 2025 Jesse Vincent
 
 ---
 
-## 3. literature-review-skill — MIT License
+## 关于领域 skill（本包不包含）
 
-来源：https://github.com/zhanlin-yan/literature-review-skill
-许可全文：`licenses/literature-review-skill-MIT.txt`
-Copyright (c) 2026 YAN (zhanlin_yan@sutd.edu.sg)
+文献检索、论文写作、期刊配图规范等**领域技能**不随本包分发。原因：
 
-包含的 skill：
+1. **目录税**：每个 skill 的 `description` 常驻于每轮对话。9 个文献/写作类 skill
+   合计约 3,466 字符（≈1,733 tokens），占全部目录税的 77%。
+2. **定位单一**：本包的定位是**协作方法论**（判据常驻、上下文洁净、分层执行），
+   领域能力属于另一个维度，应各自选配。
+3. **按需组装**：需要文献能力时，单独安装相应 skill 即可，本包的 presets
+   已通过"若装有 X 则用"的方式解耦，不会硬绑定。
 
-| 目录 | 原目录名 |
-|---|---|
-| `skills/lit-search-strategy/` | 文献检索 |
-| `skills/lit-deep-reading/` | 文献精读 |
-| `skills/lit-review-writing/` | 文献综述写作 |
+推荐来源（各自遵循其原许可）：
 
-> **修改说明**：原目录名为中文。DSH 的 skill 名必须匹配 `^[a-z0-9]+(?:-[a-z0-9]+)*$`，
-> 中文名会被静默跳过，故改为上述英文名；`SKILL.md` 的 `name` 字段同步更新，**内容未改**。
+| 领域 | 项目 | 许可 |
+|---|---|---|
+| 文献综述全链路 | literature-review-skill | MIT |
+| Nature 系写作/润色/引用/精读 | nature-skills | Apache-2.0 |
+| 每日论文 / 精读 | dailypaper-skills | Apache-2.0 |
 
----
-
-## 4. nature-skills — Apache License 2.0
-
-来源：https://github.com/nature-skills/nature-skills
-许可全文：`licenses/nature-skills-Apache-2.0.txt`
-
-包含的 skill：
-
-| 目录 |
-|---|
-| `skills/nature-academic-search/` |
-| `skills/nature-citation/` |
-| `skills/nature-polishing/` |
-| `skills/nature-reader/` |
-| `skills/nature-writing/` |
-
-> Apache 2.0 要求保留版权与许可声明。原文未修改。
-
----
-
-## 5. dailypaper-skills — Apache License 2.0
-
-来源：https://github.com/dailypaper-skills/dailypaper-skills
-许可全文：`licenses/dailypaper-skills-Apache-2.0.txt`
-
-包含的 skill：
-
-| 目录 |
-|---|
-| `skills/paper-reader/` |
-
-> Apache 2.0 要求保留版权与许可声明。原文未修改。
-
----
-
-## 许可兼容性说明
-
-- MIT 与 Apache-2.0 兼容：可以共同分发。
-- Apache-2.0 组件保留了各自的许可全文，未以 MIT 覆盖。
-- 本仓库整体对外以 MIT 发布，**但 `skills/` 下的第三方子目录仍遵循其原许可**。
-
-如需移除第三方组件，删除对应 `skills/<name>/` 目录即可，不影响其余功能。
+> 安装时注意：skill 目录名必须匹配 `^[a-z0-9]+(?:-[a-z0-9]+)*$`，
+> **中文名会被静默跳过**，需改为英文名并同步 `SKILL.md` 的 `name` 字段。

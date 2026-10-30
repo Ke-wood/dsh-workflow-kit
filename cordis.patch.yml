@@ -8,8 +8,8 @@
 # 设计：判据常驻（≤60 行）· 路径知识按需 · 执行细节外包 · 判决可执行
 
 - insert:
-    # ── 0. 本包自身：注册自带 skills/ 目录为 skill provider ──
-    #    注册自带 skills/ 目录为 provider（见 index.js），无环境变量/时序依赖
+    # ── 0. 本包自身：把 skills/ 目录写入 DSH_WORKFLOW_KIT_SKILLS ──
+    #    必须在 preset 之前，否则 skill-filesystem 读不到 bundledSkillDir
     - id: workflow-kit
       name: '@local/dsh-workflow-kit'
 
@@ -173,13 +173,14 @@
                 - 综述写成罗列，没有冲突点与空白点。
                 - 调研报告太长，主代理读不完 —— 应只回摘要 + 路径。
 
-                ## 钩子表
-                - 文献检索 / RAG → skill `literature-rag-share`
-                - 文献综述写作 → skill `literature-review-skill`
-                - 读论文 / 精读 → skill `paper-reader` 或 `文献精读`
-                - Zotero 操作 → skill `zotero`
-                - 每日论文 → skill `daily-papers`
-                - 并行调研多个独立主题 → skill `dispatching-parallel-agents`
+                ## 钩子表（领域 skill 按需安装，本包不绑定）
+                - 建立系统检索策略 → 若装有 `lit-search-strategy`
+                - 多源检索 / 引用核查 → 若装有 `nature-academic-search`
+                - 精读论文 / 做笔记 → 若装有 `lit-deep-reading` 或 `paper-reader`
+                - 全文对照翻译 → 若装有 `nature-reader`
+                - 写综述 → 若装有 `lit-review-writing`
+                - Zotero / 文献库 → 若装有对应 skill
+                - **并行调研多个独立主题 → `dispatching-parallel-agents`**（本包自带）
 
                 ## 调研产出契约（写文件，不进对话）
                 产出到 `survey/`：
@@ -435,12 +436,12 @@
                 - 同一概念前后用不同术语，读者困惑。
                 - 段落堆砌，没有论证推进。
 
-                ## 钩子表
-                - 论文正文 / 学术写作 → skill `writer skill`
-                - 学术规范 / 写作结构 → skill `academic-skills`
-                - 文献综述 → skill `文献综述写作`
-                - 润色 / 改写 → skill `nature-polishing`
-                - 引用格式 → skill `nature-citation`
+                ## 钩子表（领域 skill 按需安装，本包不绑定）
+                - 写论文正文 / 学术结构 → 若装有 `nature-writing`
+                - 润色 / 改写英文 → 若装有 `nature-polishing`
+                - 加引用 / 查支持文献 → 若装有 `nature-citation`
+                - 文献综述 → 若装有 `lit-review-writing`
+                - **声称完成前必过验证 → `verification-before-completion`**（本包自带）
 
                 ## 产物契约
                 - 正文：`manuscript/*.md` 或 `*.docx`

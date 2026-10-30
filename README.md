@@ -40,26 +40,33 @@
 - `@deepseek-ai/dsh-experimental-tool-agent-team` — 模型侧团队工具
 - `@deepseek-ai/dsh-experimental-client-ui-agent-team` — Web 任务板 + teammate 导航
 
-## 18 个 skill
+## 8 个 skill（只带方法论，不带领域能力）
 
-**协作类**
+**协作方法论**
 - `dispatching-parallel-agents` — 2+ 独立任务才并行派，子代理不继承父上下文
 - `subagent-driven-development` — 每任务 fresh 执行者 + 任务级审查 + 终审（薄索引，完整版在 references）
 - `verification-before-completion` — 没跑过验证不许说"通过"
 - `executing-plans` / `writing-plans` / `systematic-debugging`
 
-**调研类**
+**自建**
 - `baseline-survey` — 摸清既有项目基线，产出 survey/{structure,baseline,hotspots,risks}
-- `lit-search-strategy` — 文献检索策略（PICO/SPIDER，PRISMA 2020）
-- `lit-deep-reading` — 文献精读（Keshav 三遍法）
-- `lit-review-writing` — 批判性综述写作
-- `paper-reader` / `nature-reader` / `nature-academic-search`
+- `sci-figure-kit` — 科研绘图工具箱
 
-**写作类**
-- `nature-writing` / `nature-polishing` / `nature-citation`
+> 另有 `kit-selftest`（自包含探针，仅包内存在，用于验证 provider 是否生效）。
 
-**绘图类**
-- `sci-figure-kit`
+### 为什么不带文献/写作 skill
+
+这是有意的设计决定，不是遗漏：
+
+| 原因 | 数据 |
+|---|---|
+| **目录税** | 每个 skill 的 `description` **常驻**每一轮对话。9 个文献/写作类 skill 合计 3,466 字符（≈1,733 tokens），占全部目录税的 **77%** |
+| **定位单一** | 本包是**协作方法论**（判据常驻、上下文洁净、分层执行）；文献检索、论文写作属于**领域能力**，另一个维度 |
+| **按需组装** | 需要文献能力时单独装即可。presets 已用"**若装有 X 则用**"的方式解耦，不硬绑定 |
+
+推荐搭配（各自遵循原许可）：literature-review-skill（MIT）、nature-skills（Apache-2.0）、dailypaper-skills（Apache-2.0）。
+
+> 安装领域 skill 时注意：目录名必须匹配 `^[a-z0-9]+(?:-[a-z0-9]+)*$`，**中文名会被静默跳过**。
 
 ## 安装
 
@@ -72,8 +79,9 @@ git clone git@github.com:Ke-wood/dsh-workflow-kit.git ~/dsh-workflow-kit
 # 2. 安装 bundle
 #    在 DSH 里执行 plugin_manager install_bundle，target = 该目录绝对路径
 
-# 3. 注册 skills（本包自带，无需手动复制）
-#    index.js 会自动把 <包目录>/skills 写入 DSH_WORKFLOW_KIT_SKILLS
+# 3. skills 自动注册
+#    index.js 在 Host 启动时调用 ctx.skills.registerProvider()
+#    自行扫描 <包目录>/skills/，无需手动复制或配置环境变量
 ```
 
 ### 方式 B：手动注册 skills
@@ -120,26 +128,34 @@ cp -r dsh-workflow-kit/skills/* ~/.dsh/skills/
 
 ```
 dsh-workflow-kit/
-├── package.json          # dsh.bundle.patch 指向 cordis.patch.yml
-├── index.js              # 注册 skills 目录（写入 DSH_WORKFLOW_KIT_SKILLS）
-├── cordis.patch.yml      # 四个 preset 声明
-├── skills/               # 17 个 skill + ROUTING.md
+├── package.json            # dsh.bundle.patch 指向 cordis.patch.yml
+├── index.js                # 注册 skill provider，扫描 skills/
+├── cordis.patch.yml        # 五个 preset 声明 + Agent Teams 三件套
+├── skills/                 # 8 个方法论 skill + 1 探针 + ROUTING.md
 │   ├── ROUTING.md
 │   ├── baseline-survey/
 │   ├── dispatching-parallel-agents/
 │   └── ...
-└── presets/              # （预留，供拆分使用）
+├── licenses/               # 第三方许可全文
+├── LICENSE                 # MIT（原创部分）
+└── THIRD-PARTY-NOTICES.md
 ```
 
 ## 自包含性
 
-本包**不依赖任何硬编码路径**，可放在任意目录、也可被 npm 安装：
+本包**不依赖任何硬编码路径**，可放在任意目录：
 
-- `index.js` 在 Host 启动时用 `import.meta.url` 算出自身目录，把 `skills/` 绝对路径写入 `DSH_WORKFLOW_KIT_SKILLS`
-- `cordis.patch.yml` 里用 `!!js process.env.DSH_WORKFLOW_KIT_SKILLS` 引用它
-- 已验证：复制到全新位置后仍能正确解析出全部 17 个 skill（`ROUTING.md` 不是 skill）
+- `index.js` 在 `apply()` 时用 `import.meta.url` 算出自身目录，
+  调用 `ctx.skills.registerProvider()` 扫描 `<包目录>/skills/`
+- 不写环境变量、不改 profile 配置、不用 `!!js` 表达式
+- 静态验证：复制到全新位置后路径解析正确，可发现全部 skill 目录
 
-> 若你在别处显式设置了 `DSH_WORKFLOW_KIT_SKILLS`，本包不会覆盖（方便指向自己的 skills 目录）。
+> **为什么不用 `bundledSkillDir`**：那是 `skill-filesystem` 的配置项，由 `!!js` 在 patch
+> 求值时读取 —— 而求值发生在插件 `apply()` **之前**，插件根本来不及设置环境变量，
+> 读到必然是 `undefined`。自注册 provider 是唯一无时序依赖的解法。
+
+> 验证方法：重启 DSH 后执行 `/skill kit-selftest`。该 skill **只在包内存在**
+> （不在 `~/.dsh/skills`），能加载即证明 provider 生效。
 
 ## 许可
 
