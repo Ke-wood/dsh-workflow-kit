@@ -321,11 +321,14 @@
                 - 中文标签渲染成方块。
                 - 尺寸超出期刊要求，投稿被打回。
 
-                ## 钩子表
-                - 绘图总入口 → skill `sci-figure-kit`
-                - 期刊图表规范 → skill `nature-figure`
-                - 图转 PPT → skill `nature-image2ppt`
-                - 需要时可调 Python / R 后端
+                ## 钩子表（领域 skill 按需安装，本包不绑定）
+                - 绘图总入口（含 figkit / R / omicverse 后端）→ 若装有 `sci-figure-kit`
+                - 期刊图表规范 → 若装有 `nature-figure`
+                - 图转 PPT → 若装有 `nature-image2ppt`
+                - **需要时直接调 Python / R 后端**，不依赖特定 skill
+
+                > `sci-figure-kit` 体积较大（81 文件 / 800KB，含多个绘图包），
+                > 本包不内含，见 README 末「推荐搭配」。
 
                 ## 产物契约
                 - 源数据：`data/*.csv`

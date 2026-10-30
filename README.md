@@ -45,9 +45,9 @@
 - `@deepseek-ai/dsh-experimental-tool-agent-team` — 模型侧团队工具
 - `@deepseek-ai/dsh-experimental-client-ui-agent-team` — Web 任务板 + teammate 导航
 
-## 8 个 skill（只带方法论，不带领域能力）
+## 7 个 skill（只带方法论，不带领域能力）
 
-**协作方法论**
+**协作方法论**（来自 superpowers，MIT）
 - `dispatching-parallel-agents` — 2+ 独立任务才并行派，子代理不继承父上下文
 - `subagent-driven-development` — 每任务 fresh 执行者 + 任务级审查 + 终审（薄索引，完整版在 references）
 - `verification-before-completion` — 没跑过验证不许说"通过"
@@ -55,21 +55,26 @@
 
 **自建**
 - `baseline-survey` — 摸清既有项目基线，产出 survey/{structure,baseline,hotspots,risks}
-- `sci-figure-kit` — 科研绘图工具箱
 
 > 另有 `kit-selftest`（自包含探针，仅包内存在，用于验证 provider 是否生效）。
 
-### 为什么不带文献/写作 skill
+**整包仅 36 个文件 / 268 KB** —— 领域能力全部外置，见文末「推荐搭配」。
 
-这是有意的设计决定，不是遗漏：
+### 为什么不带领域 skill
 
-| 原因 | 数据 |
-|---|---|
-| **目录税** | 每个 skill 的 `description` **常驻**每一轮对话。9 个文献/写作类 skill 合计 3,466 字符（≈1,733 tokens），占全部目录税的 **77%** |
-| **定位单一** | 本包是**协作方法论**（判据常驻、上下文洁净、分层执行）；文献检索、论文写作属于**领域能力**，另一个维度 |
-| **按需组装** | 需要文献能力时单独装即可。presets 已用"**若装有 X 则用**"的方式解耦，不硬绑定 |
+这是有意的设计决定，两个理由：
 
-推荐搭配（各自遵循原许可）：literature-review-skill（MIT）、nature-skills（Apache-2.0）、dailypaper-skills（Apache-2.0）。
+**① 目录税**：每个 skill 的 `description` **常驻**每一轮对话。
+
+| 移出的类别 | skill 数 | description 合计 | 占总目录税 |
+|---|---|---|---|
+| 文献/写作 | 9 | 3,466 字符 ≈ 1,733 tokens | **77%** |
+| 绘图（sci-figure-kit） | 1 | — | 但占**包体积 80%**（81 文件 / 800KB） |
+
+**② 定位单一**：本包是**协作方法论**（判据常驻、上下文洁净、分层执行）。
+文献检索、论文写作、科研绘图都属于**领域能力**，另一个维度。
+
+presets 已用"**若装有 X 则用**"的方式解耦，不硬绑定。需要时单独装即可。
 
 > 安装领域 skill 时注意：目录名必须匹配 `^[a-z0-9]+(?:-[a-z0-9]+)*$`，**中文名会被静默跳过**。
 
@@ -165,11 +170,46 @@ dsh-workflow-kit/
 ## 许可
 
 - **本仓库原创部分**：MIT（`LICENSE`）
-- **`skills/` 下第三方 skill**：各自沿用原许可（MIT / Apache-2.0）
+- **`skills/` 下第三方 skill**：各自沿用原许可（MIT）
 
-完整的来源、版权与修改说明见 [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md)，各许可全文在 `licenses/`。
+完整的来源、版权与修改说明见 [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md)，许可全文在 `licenses/`。
 
 如需移除第三方组件，删除对应 `skills/<name>/` 目录即可，不影响其余功能。
+
+---
+
+## 推荐搭配（本包不含）
+
+本包只装**方法论**。以下领域能力按项目需要另行安装，装好后 presets 的钩子表会自动识别。
+
+### 科研绘图
+
+| 项目 | 说明 | 体积 |
+|---|---|---|
+| **[sci-figure-kit](https://github.com/Ke-wood/sci-figure-kit)** | 三套隔离后端（Python figkit/cnsplots、R/ggplot2 全家桶、omicverse）的统一入口。火山/热图/UMAP/森林图/oncoprint/多面板/期刊配色/中文/矢量；也能做分析（单细胞流程、富集、生存、统计检验、降维聚类）。含 15+ 绘图 mod。 | **81 文件 / 800 KB** |
+
+> 之所以不内置：它含多个 R/Python 绘图包，**单它就占 800KB**，与"轻量方法论包"的定位失衡。
+> 需要的用户单独装即可 —— 它本身就是一个完整的 skill 包。
+
+### 文献与写作
+
+| 项目 | 说明 | 许可 |
+|---|---|---|
+| **literature-review-skill** | 中文文献综述全链路（检索策略 / 精读 / 综述写作） | MIT |
+| **nature-skills** | Nature 系写作、润色、引用、精读、paper2ppt 等 12+ 技能 | Apache-2.0 |
+| **dailypaper-skills** | 每日论文抓取 / 笔记 / 综述 | Apache-2.0 |
+
+> 安装提示：skill 目录名须匹配 `^[a-z0-9]+(?:-[a-z0-9]+)*$`。
+> 中文名（如"文献检索"）**会被静默跳过**，需改为英文名并同步 `SKILL.md` 的 `name` 字段。
+
+### 安装领域 skill
+
+```bash
+# 复制到用户 skill 目录即可，无需改配置
+cp -r <项目>/skills/* ~/.dsh/skills/
+```
+
+装好后，对应 preset 的钩子表（"若装有 X 则用"）会自动生效。
 
 ## 发布到 npm（可选）
 

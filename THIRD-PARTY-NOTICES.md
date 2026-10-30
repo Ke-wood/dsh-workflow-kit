@@ -12,7 +12,6 @@
 | `index.js` | 注册 skills 目录的 Host 插件 |
 | `cordis.patch.yml` | 五个 agent preset 声明 |
 | `skills/baseline-survey/` | 基线调研 skill |
-| `skills/sci-figure-kit/` | 科研绘图工具箱 |
 | `skills/kit-selftest/` | 自包含探针（仅包内存在） |
 | `skills/ROUTING.md` | skill 路由表 |
 
@@ -44,19 +43,22 @@ Copyright (c) 2025 Jesse Vincent
 
 ## 关于领域 skill（本包不包含）
 
-文献检索、论文写作、期刊配图规范等**领域技能**不随本包分发。原因：
+文献检索、论文写作、**科研绘图**等**领域技能**不随本包分发。原因：
 
 1. **目录税**：每个 skill 的 `description` 常驻于每轮对话。9 个文献/写作类 skill
    合计约 3,466 字符（≈1,733 tokens），占全部目录税的 77%。
-2. **定位单一**：本包的定位是**协作方法论**（判据常驻、上下文洁净、分层执行），
+2. **体积失衡**：`sci-figure-kit` 含多个 R/Python 绘图包，**单它 81 文件 / 800 KB**，
+   占原包体积的 80%，与轻量方法论包的定位严重不符。
+3. **定位单一**：本包的定位是**协作方法论**（判据常驻、上下文洁净、分层执行），
    领域能力属于另一个维度，应各自选配。
-3. **按需组装**：需要文献能力时，单独安装相应 skill 即可，本包的 presets
-   已通过"若装有 X 则用"的方式解耦，不会硬绑定。
+4. **按需组装**：需要时单独安装即可，本包的 presets 已通过"若装有 X 则用"
+   的方式解耦，不会硬绑定。
 
 推荐来源（各自遵循其原许可）：
 
 | 领域 | 项目 | 许可 |
 |---|---|---|
+| 科研绘图（figkit / R / omicverse） | sci-figure-kit | 见其仓库 |
 | 文献综述全链路 | literature-review-skill | MIT |
 | Nature 系写作/润色/引用/精读 | nature-skills | Apache-2.0 |
 | 每日论文 / 精读 | dailypaper-skills | Apache-2.0 |
