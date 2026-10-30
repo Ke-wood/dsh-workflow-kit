@@ -24,13 +24,18 @@
 
 按**工作区间**分档，切换即换 persona：
 
-| preset | 用途 | 特点 |
+| preset | 用途 | 核心判据 |
 |---|---|---|
-| `base` | 通用编码/文件/终端/委派 | 证据优先、驳回力、细节留指针 |
-| `research` | 文献调研、综述、RAG | **先摸基线再谈深化** |
-| `figure` | 期刊配图、数据可视化 | 图先有数据再有风格；中文验字形 |
-| `writer` | 论文正文、润色 | 每个论断要有出处；润色不改事实 |
-| `delegation` | 长任务/大型工程 | 强委派、子代理沟通、子代理复用（用完不丢） |
+| **`code`** | **工程编码：改代码、修 bug、重构、跑测试** | **能跑才算完成 · 最小改动 · 先查调用方再改签名 · 先复现再修** |
+| `research` | 文献调研、综述、RAG | 先摸基线再谈深化 · 细节留指针 |
+| `figure` | 期刊配图、数据可视化 | 图先有数据再有风格 · 中文验字形 |
+| `writer` | 论文正文、润色 | 每个论断要有出处 · 润色不改事实 |
+| `delegation` | 长任务/大型工程 | 强委派 · 子代理沟通 · 子代理复用（用完不丢） |
+
+> **`code` 是主力档**：本包自带的 6 个方法论 skill 全是工程向的
+> （`systematic-debugging` / `verification-before-completion` / `writing-plans` /
+> `subagent-driven-development` / `dispatching-parallel-agents` / `baseline-survey`），
+> `code` 档的钩子表能**满配**；其余档位的领域 skill 按需自行安装。
 
 ## Agent Teams 三件套
 
@@ -97,7 +102,7 @@ cp -r dsh-workflow-kit/skills/* ~/.dsh/skills/
 
 ## 使用
 
-1. 在 GUI 的模式/预设选择里，按当前项目选档（`base`/`research`/`figure`/`writer`）
+1. 在 GUI 的模式/预设选择里，按当前项目选档（`code`/`research`/`figure`/`writer`）
 2. 需要选 skill 时先读 `skills/ROUTING.md`（22 条任务信号路由 + 5 条组合链路）
 3. 声称完成前必过 `verification-before-completion`
 
