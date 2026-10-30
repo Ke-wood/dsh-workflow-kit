@@ -94,7 +94,7 @@ window.__ModuleLoader__.load({
       return { total: list.length, done, doing, items: list }
     }
 
-    // ── 样式 ──────────────────────────────────────────────
+    // ── 样式（变量名取自 Theme.listTokens 实测）────────────────
 
     const C = {
       page: { padding: '12px 14px', fontSize: 12.5, color: 'var(--dsw-alias-label-primary)' },
@@ -108,24 +108,24 @@ window.__ModuleLoader__.load({
       },
       card: {
         border: '1px solid var(--dsw-alias-border-l1)', borderRadius: 8,
-        padding: '8px 10px', marginBottom: 8, background: 'var(--dsw-alias-bg-l1)',
+        padding: '8px 10px', marginBottom: 8, background: 'var(--dsw-alias-bg-layer-1)',
       },
       badge: {
         display: 'inline-flex', alignItems: 'center', gap: 5,
         fontSize: 11.5, padding: '2px 8px', borderRadius: 20,
-        background: 'var(--dsw-alias-bg-l2)', color: 'var(--dsw-alias-label-primary)',
+        background: 'var(--dsw-alias-bg-layer-2)', color: 'var(--dsw-alias-label-primary)',
       },
       dot: {
         width: 7, height: 7, borderRadius: '50%',
-        background: 'var(--dsw-alias-label-secondary)',
+        background: 'var(--dsw-alias-state-idle-primary)',
         display: 'inline-block',
       },
       dotOn: {
         width: 7, height: 7, borderRadius: '50%',
-        background: '#3caa6e', boxShadow: '0 0 0 3px rgba(60,170,110,.18)',
+        background: 'var(--dsw-alias-state-success-primary)',
         display: 'inline-block',
       },
-      bar: { height: 5, borderRadius: 3, background: 'var(--dsw-alias-bg-l2)', overflow: 'hidden', marginTop: 5 },
+      bar: { height: 5, borderRadius: 3, background: 'var(--dsw-alias-bg-layer-2)', overflow: 'hidden', marginTop: 5 },
       item: { display: 'flex', gap: 6, alignItems: 'baseline', padding: '3px 0', fontSize: 12 },
       empty: { fontSize: 12, color: 'var(--dsw-alias-label-secondary)', fontStyle: 'italic', padding: '4px 0' },
       mono: { fontFamily: 'ui-monospace, Consolas, monospace', fontSize: 11.5 },
@@ -152,14 +152,39 @@ window.__ModuleLoader__.load({
     // ── 主面板 ────────────────────────────────────────────
     //
     // React 规则：hook 必须在组件顶层无条件调用、且顺序稳定。
-    // 所以拆成两层——Guarded 先确认 hooks 存在，Workbench 里再无条件调用。
+    // 拆三层：Boundary 兜错 → Guarded 检查 hooks → Workbench 调 hook。
+
+    class Boundary extends React.Component {
+      constructor(props) {
+        super(props)
+        this.state = { err: null }
+      }
+
+      static getDerivedStateFromError(err) {
+        return { err: err }
+      }
+
+      render() {
+        if (this.state.err) {
+          const msg = safe(() => String(this.state.err.message ?? this.state.err), '未知错误')
+          return h('div', { style: C.page },
+            h('div', { style: C.secTitle }, '工作台'),
+            h('div', {
+              style: {
+                fontSize: 12, lineHeight: 1.6,
+                color: 'var(--dsw-alias-state-error-primary)',
+              },
+            }, '渲染出错：' + msg))
+        }
+        return this.props.children
+      }
+    }
 
     function Workbench(props) {
-      // 无条件调用（顺序固定），Guarded 已保证存在
+      // 只调用「非 selector 型」的 hook：useSession / useSessions 属于
+      // SnapshotSelectorHook，必须传 selector 才有结果，误调用会让组件崩。
       const statusRaw = props.useSessionStatus()
-      const sessionSnap = props.useSession()
       const conv = props.useConversation()
-      const sessions = props.useSessions()
 
       const status = isObj(statusRaw)
         ? (statusRaw.status ?? statusRaw.state ?? (statusRaw.running ? 'running' : 'idle'))
@@ -168,7 +193,7 @@ window.__ModuleLoader__.load({
       const nodes = safe(() => conv?.nodes ?? conv?.items ?? conv?.chat?.nodes ?? [], [])
       const messages = safe(() => conv?.messages ?? [], [])
 
-      const preset = findPreset(sessionSnap, sessions?.current, props.session)
+      const preset = findPreset(conv, props.session)
       const calls = collectToolCalls(nodes)
       const todos = todoSummary(lastTodo(nodes))
       const subCalls = calls.filter(
@@ -245,7 +270,7 @@ window.__ModuleLoader__.load({
     function makePanel() {
       return function Guarded(props) {
         const p = isObj(props) ? props : {}
-        const needed = ['useSessionStatus', 'useSession', 'useConversation', 'useSessions']
+        const needed = ['useSessionStatus', 'useConversation']
         const missing = needed.filter((k) => typeof p[k] !== 'function')
 
         if (missing.length) {
@@ -253,7 +278,7 @@ window.__ModuleLoader__.load({
             h('div', { style: C.secTitle }, '工作台'),
             h('div', { style: C.empty }, '缺少 hooks：' + missing.join(', ')))
         }
-        return h(Workbench, p)
+        return h(Boundary, null, h(Workbench, p))
       }
     }
 
