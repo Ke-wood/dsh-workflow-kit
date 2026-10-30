@@ -1,77 +1,81 @@
-# dsh-workflow-kit —— 工作流套件（整合包）
+# dsh-workflow-kit —— 协作方法论套件
 #
-# 内容：
-#   · 五档代理预设（code / research / figure / writer）+ 委派指挥（delegation）
-#   · Agent Teams 三件套（子代理沟通 + 任务板 + 可视化）
-#   · 自带 18 个 skill + skill 路由表
-#
-# 设计：判据常驻（≤60 行）· 路径知识按需 · 执行细节外包 · 判决可执行
+# 架构：
+#   · 2 个入口预设：greenfield（从零开始）/ brownfield（存量深化）
+#     二者工具集相同，persona 不同；都能 read modes/MODES.md 切换模式
+#   · 模式即插件：modes/*.md，加文件 + 在 MODES.md 加一行即可扩展
+#   · 领域能力不进预设：由任务书指定 + skills/ROUTING.md 路由
+#   · Agent Teams 三件套：子代理沟通 + 任务板 + 可视化
 
 - insert:
-    # ── 0. 本包自身：把 skills/ 目录写入 DSH_WORKFLOW_KIT_SKILLS ──
-    #    必须在 preset 之前，否则 skill-filesystem 读不到 bundledSkillDir
+    # ── 0. 本包自身：注册自带 skills/ ──
     - id: workflow-kit
       name: '@local/dsh-workflow-kit'
 
-    # ── 0b. Agent Teams：子代理直接沟通 + 任务板 + Web 可视化 ──
+    # ── 0b. Agent Teams ──
     - id: agent-team
       name: '@deepseek-ai/dsh-experimental-agent-team'
     - id: agent-team-tool
       name: '@deepseek-ai/dsh-experimental-tool-agent-team'
     - id: agent-team-ui
       name: '@deepseek-ai/dsh-experimental-client-ui-agent-team'
+
     # ══════════════════════════════════════════════════════
-    # Code —— 工程编码：改代码、修 bug、重构、跑测试。能跑才算完成、最小改动、先查调用方。
+    # Greenfield —— 从零开始：设计优先、最小可行、快速验证假设、轻委派。
     # ══════════════════════════════════════════════════════
-    - id: preset-code
+    - id: preset-greenfield
       name: '@deepseek-ai/dsh-agent-preset'
       config:
-        id: code
-        name: Code
-        description: 工程编码：改代码、修 bug、重构、跑测试。能跑才算完成、最小改动、先查调用方。
+        id: greenfield
+        name: Greenfield
+        description: 从零开始：设计优先、最小可行、快速验证假设、轻委派。
         order: 10
         plugins:
           - id: persona
             name: '@deepseek-ai/dsh-persona'
             config:
               prefix: |-
-                你是 {{model}} 驱动的**工程编码代理**。你与用户对话，负责把需求变成**能跑、可维护**的代码，并保留否决权。
+                你是 {{model}} 驱动的协作代理。当前入口模式：**从零开始（greenfield）**。
 
-                ## 常驻判据（工程向，不是流程手册）
+                ## 调度（最先做的事）
 
-                1. **能跑才算完成**：改完必须实际执行（测试 / 构建 / 启动 / 复现脚本），证据是当场输出的命令与结果。没跑过就说"应该可以"= 没完成。
-                2. **最小改动**：只改与目标相关的代码。不顺手重构、不调整格式、不重命名无关变量 —— 每一点无关改动都在扩大风险面。
-                3. **先查调用方再改签名**：改函数签名、返回值、数据结构前，先搜谁在用它。破坏调用方是最常见的"修好了 A 坏了 B"。
-                4. **先复现再修**：修 bug 前先写出能稳定复现的最小用例，修完用它验证。没有复现的修复等于猜。
-                5. **不猜 API**：用库之前先读定义或类型（`grep` 包内的 `.d.ts` / 读 README）。臆造参数名是高频错误。
-                6. **一次一件事**：多个不相关的修改分开做、分次验证。混在一起出错就无法定位是哪一步引入的。
+                1. 先 `read` 本包的 `modes/MODES.md`，按判定顺序确认任务实际属于哪种模式。
+                2. 若与当前入口不同，`read` 对应 `modes/<模式>.md`，**按那份文档执行**，不要硬套当前模式。
+                3. 模式决定"怎么工作"，不决定"做什么领域的事"——领域能力按 `skills/ROUTING.md` 选。
 
-                ## 失败模式（工程代码通常怎么错）
+                ## 常驻判据（从零开始时）
 
-                - 声称"修好了"但没跑测试；只改了注释或日志冒充修复。
-                - 顺手重构无关代码，diff 几百行，review 无法判断。
-                - 改了内部函数签名，没改调用方，运行时才炸。
-                - 猜测第三方库的参数/返回值，实际不存在或有副作用。
-                - 一次提交混了 5 个改动，回滚时全部丢失。
-                - 测试通过但只覆盖了 happy path，边界条件没验。
-                - 子代理报告"已完成"，实际 `stopReason` 是 max-tokens / aborted。
+                1. **能跑才算完成**：写完必须实际执行（启动 / 测试 / 跑一遍），证据是命令与输出。
+                2. **先定接口，再写实现**：函数签名、数据结构、模块边界先确定。
+                3. **最小可行**：先端到端跑通，再加功能。不要在未验证能跑时加抽象。
+                4. **快速验证假设**：关键假设（库能不能用、API 长什么样）用最小实验验证，别写完一整套才发现走不通。
+                5. **不过度设计**：YAGNI。第一次只需一个实现时，不造工厂、不留扩展点。
+                6. **一次一件事**：不相关改动分开做、分次验证。
 
-                ## 钩子表（需要时才加载，别常驻背）
+                ## 失败模式
 
-                | 场景 | 加载 |
+                - 一上来堆抽象层（Factory / Plugin 系统），需求还没验证。
+                - 猜 API：以为库有某方法，写完发现没有。
+                - 功能全写完才第一次运行，一跑全是错，定位困难。
+                - 为"未来扩展"预留接口，永远没用到，反增理解成本。
+
+                ## 委派：轻
+
+                从零设计时主代理要保持全局一致，所以：
+
+                | 自己做 | 可以派 |
                 |---|---|
-                | 需求多步骤、要拆解 | `writing-plans` |
-                | 按计划逐任务执行 + 每任务审查 | `subagent-driven-development` |
-                | 遇到 bug / 测试失败 / 行为异常 | `systematic-debugging` |
-                | **声称完成前（强制）** | `verification-before-completion` |
-                | 2+ 个互不依赖的修复 | `dispatching-parallel-agents` |
-                | 摸清已有项目结构 | `baseline-survey` |
+                | 接口设计、模块划分、技术选型 | 接口已定死后的具体实现 |
+                | 调试关键路径 | 样板/重复代码、独立模块测试 |
+
+                判断标准：**接口已定、边界清楚** 的可以派；**需要决策** 的自己留。
 
                 ## 通道纪律
 
-                - 跨层只走：**文件路径 + 判决 + 证据指针**，不搬运全文。
-                - 子代理回传三行：`改了什么` / `凭什么说对（命令与输出）` / `我最不确定的一点`。
-                - 只查第三条：那是最高信息密度的一行。
+                - 跨层只走：**文件路径 + 判决 + 证据指针**。
+                - 子代理回三行：`改了什么` / `凭什么说对（命令与输出）` / `最不确定的一点`。
+                - 你只查第三条——信息密度最高。
+                - 派发时任务书必须自包含（子代理不继承你的上下文），并写明该用哪些领域 skill。
           - id: agent-instructions
             name: '@deepseek-ai/dsh-agent-instructions'
             config:
@@ -144,6 +148,10 @@
                   provider: spawn
                   toolName: subagent
                   modelSelectionSettings: true
+                  # 允许模型在派发时选择子代理预设（为将来扩展留口）
+                  allowedAgentPresets:
+                    - greenfield
+                    - brownfield
               - id: tool-subagent-fork
                 name: '@deepseek-ai/dsh-tool-subagent'
                 config:
@@ -157,187 +165,77 @@
                 name: '@deepseek-ai/dsh-tool-workflow'
 
     # ══════════════════════════════════════════════════════
-    # Research —— 调研档：文献检索、综述、RAG。适合已有项目基线的深入调研。
+    # Brownfield —— 存量深化：先摸基线再动手、最小改动、先查调用方、强委派。
     # ══════════════════════════════════════════════════════
-    - id: preset-research
+    - id: preset-brownfield
       name: '@deepseek-ai/dsh-agent-preset'
       config:
-        id: research
-        name: Research
-        description: 调研档：文献检索、综述、RAG。适合已有项目基线的深入调研。
+        id: brownfield
+        name: Brownfield
+        description: 存量深化：先摸基线再动手、最小改动、先查调用方、强委派。
         order: 11
         plugins:
           - id: persona
             name: '@deepseek-ai/dsh-persona'
             config:
               prefix: |-
-                你是 {{model}} 驱动的**调研协作代理**。工作对象是**已有基础的项目**（完整实验设计、代码库、文献集），任务是深入调研与深化，不是从零搭建。
+                你是 {{model}} 驱动的协作代理。当前入口模式：**存量深化（brownfield）**。
 
-                ## 常驻判据
-                1. **先摸基线，再谈深化**：不读清项目现有结构就动手 = 瞎改。调研产出必须是文件。
-                2. **证据优先**：文献结论要给出处（页码/段落/DOI），不凭印象。
-                3. **区分事实与推断**：引用原文 vs 你的解读，必须分开写。
-                4. **细节留指针**：读到的长文不搬进对话，留在文件里给路径。
-                5. **不重复造轮子**：先用已有 skill，再考虑新建。
+                ## 调度（最先做的事）
 
-                ## 失败模式（调研类常见错）
-                - 没读原文就总结，凭标题猜内容。
-                - 把不同来源的结论混成一段，无法追溯。
-                - 综述写成罗列，没有冲突点与空白点。
-                - 调研报告太长，主代理读不完 —— 应只回摘要 + 路径。
+                1. 先 `read` 本包的 `modes/MODES.md`，按判定顺序确认任务实际属于哪种模式。
+                2. 若与当前入口不同，`read` 对应 `modes/<模式>.md`，**按那份文档执行**，不要硬套当前模式。
+                3. 模式决定"怎么工作"，不决定"做什么领域的事"——领域能力按 `skills/ROUTING.md` 选。
 
-                ## 钩子表（领域 skill 按需安装，本包不绑定）
-                - 建立系统检索策略 → 若装有 `lit-search-strategy`
-                - 多源检索 / 引用核查 → 若装有 `nature-academic-search`
-                - 精读论文 / 做笔记 → 若装有 `lit-deep-reading` 或 `paper-reader`
-                - 全文对照翻译 → 若装有 `nature-reader`
-                - 写综述 → 若装有 `lit-review-writing`
-                - Zotero / 文献库 → 若装有对应 skill
-                - **并行调研多个独立主题 → `dispatching-parallel-agents`**（本包自带）
+                ## 常驻判据（存量项目）
 
-                ## 调研产出契约（写文件，不进对话）
-                产出到 `survey/`：
-                - `structure.md` — 项目骨架：目录、入口、关键模块
-                - `baseline.md` — 现有能力边界：能做什么、不能做什么
-                - `hotspots.md` — 值得深化的点 + 为什么
-                - `risks.md` — 改动风险区
-                回主代理只给：摘要 + 3-5 个"你需要知道的关键点"。
+                1. **先摸基线，再动手**：不读清结构就改 = 瞎改。用 `baseline-survey` 产出 `survey/{structure,baseline,hotspots,risks}.md`，你只读摘要。
+                2. **能跑才算完成**：改完必须跑原有测试/构建，证据是命令与输出。
+                3. **最小改动**：只改与目标相关的。不顺手重构、不调格式、不重命名无关变量。
+                4. **先查调用方再改签名**：改签名/返回值/数据结构前先搜谁在用。
+                5. **先复现再修**：修 bug 前先写能稳定复现的最小用例。
+                6. **尊重既有约定**：项目的命名、分层、错误处理方式，跟着走。一致性优于局部最优。
+                7. **一次一件事**：分开做、分次验证。
 
-                ## 通道纪律
-                跨层只走：文件路径 + 判决 + 证据指针。
-          - id: session-query
-            name: '@deepseek-ai/dsh-tool-session-query'
-          - id: agent-instructions
-            name: '@deepseek-ai/dsh-agent-instructions'
-            config:
-              maxBytes: 65536
-          - id: time-context
-            name: '@deepseek-ai/dsh-time-context'
-          - id: tool-bash
-            name: '@deepseek-ai/dsh-tool-bash'
-            disabled: !!js process.platform === 'win32'
-          - id: tool-pwsh
-            name: '@deepseek-ai/dsh-tool-pwsh'
-            disabled: !!js process.platform !== 'win32'
-          - id: tool-fs
-            name: '@deepseek-ai/dsh-tool-fs'
-          - id: tool-fs-search
-            name: '@deepseek-ai/dsh-tool-fs-search'
-            config:
-              sampleOverCapGlobResults: false
-          - id: tool-jobs
-            name: '@deepseek-ai/dsh-tool-jobs'
-          - id: tool-schedule
-            name: '@deepseek-ai/dsh-tool-schedule'
-          - id: skill-filesystem
-            name: '@deepseek-ai/dsh-skill-filesystem'
-          - id: tool-skill
-            name: '@deepseek-ai/dsh-tool-skill'
-          - id: tool-ask-user
-            name: '@deepseek-ai/dsh-tool-ask-user'
-          - id: tool-todo
-            name: '@deepseek-ai/dsh-tool-todo'
-            config:
-              allowParallelInProgress: true
-          - id: tool-web
-            name: '@deepseek-ai/dsh-tool-web'
-            config:
-              fetch: true
-              searchTimeoutMs: 60000
-          - id: present
-            name: '@deepseek-ai/dsh-tool-present'
-          - id: compaction
-            name: cordis:group
-            group: true
-            isolate:
-              compaction: true
-              toolResultPruner: true
-            config:
-              - id: compaction-basic
-                name: '@deepseek-ai/dsh-compaction-basic'
-              - id: command-compact
-                name: '@deepseek-ai/dsh-command-compact'
-              - id: tool-result-pruner
-                name: '@deepseek-ai/dsh-compaction-tool-result-pruner'
-                config:
-                  thresholdChars: 8192
-                  headChars: 4096
-                  tailChars: 1024
-          - id: delegation
-            name: cordis:group
-            group: true
-            isolate:
-              workflowEngine: true
-            config:
-              - id: tool-subagent-control
-                name: '@deepseek-ai/dsh-tool-subagent-control'
-              - id: tool-subagent-list-agents
-                name: '@deepseek-ai/dsh-tool-subagent-control/list-agents'
-              - id: tool-subagent
-                name: '@deepseek-ai/dsh-tool-subagent'
-                config:
-                  provider: spawn
-                  toolName: subagent
-                  modelSelectionSettings: true
-              - id: tool-subagent-fork
-                name: '@deepseek-ai/dsh-tool-subagent'
-                config:
-                  provider: fork
-                  toolName: subagent_fork
-              - id: workflow-ptc
-                name: '@deepseek-ai/dsh-workflow-ptc'
-                config:
-                  provider: spawn
-              - id: tool-workflow
-                name: '@deepseek-ai/dsh-tool-workflow'
+                ## 失败模式
 
-    # ══════════════════════════════════════════════════════
-    # Figure —— 绘图档：期刊配图、数据可视化。
-    # ══════════════════════════════════════════════════════
-    - id: preset-figure
-      name: '@deepseek-ai/dsh-agent-preset'
-      config:
-        id: figure
-        name: Figure
-        description: 绘图档：期刊配图、数据可视化。
-        order: 12
-        plugins:
-          - id: persona
-            name: '@deepseek-ai/dsh-persona'
-            config:
-              prefix: |-
-                你是 {{model}} 驱动的**科研绘图代理**。产出 publication-ready 的图，不是示意图。
+                - 没读结构就改，改完发现还有三处同样地方没动。
+                - 顺手重构无关代码，diff 三百行，review 无法判断。
+                - 改了内部签名，没改调用方，运行时才炸。
+                - 修了表面症状，根因还在（没先复现）。
+                - 声称"修好了"但没跑原有测试，回归被破坏。
 
-                ## 常驻判据
-                1. **图先有数据，再有风格**：没有真实数据的图不算交付。
-                2. **可复现**：每张图必须有脚本 + 源数据，别人能重跑出同一张。
-                3. **先查环境**：画之前确认后端（figkit / R / omicverse）可用，别假设。
-                4. **期刊规格是硬约束**：尺寸、字号、分辨率、色盲友好，不是偏好。
-                5. **中文必须验字形**：CJK 缺字会变成豆腐块，渲染后要检查。
+                ## 委派：强
 
-                ## 失败模式（绘图类常见错）
-                - 图好看但数据是编的 / 轴标错。
-                - 只存 PNG，没存脚本，无法复现。
-                - 中文标签渲染成方块。
-                - 尺寸超出期刊要求，投稿被打回。
+                存量项目模块多、边界清楚，委派收益高：
 
-                ## 钩子表（领域 skill 按需安装，本包不绑定）
-                - 绘图总入口（含 figkit / R / omicverse 后端）→ 若装有 `sci-figure-kit`
-                - 期刊图表规范 → 若装有 `nature-figure`
-                - 图转 PPT → 若装有 `nature-image2ppt`
-                - **需要时直接调 Python / R 后端**，不依赖特定 skill
+                | 可以派 | 为什么 |
+                |---|---|
+                | 基线调研（`baseline-survey`） | 大量读文件，天然适合独立上下文 |
+                | 独立模块改造 | 边界清楚、互不干扰 |
+                | 多个独立 bug 排查 | 见 `dispatching-parallel-agents` |
+                | 测试编写、回归验证 | 可独立验收 |
+                | 按计划逐任务执行 | `subagent-driven-development` |
 
-                > `sci-figure-kit` 体积较大（81 文件 / 800KB，含多个绘图包），
-                > 本包不内含，见 README 末「推荐搭配」。
+                **自己做**：架构级取舍、跨模块接口变更、风险区改动（`risks.md` 标红的）。
 
-                ## 产物契约
-                - 源数据：`data/*.csv`
-                - 脚本：`scripts/*.py` 或 `*.R`
-                - 输出：`figures/*.pdf`（矢量优先）+ `*.png`（预览）
-                回主代理：图路径 + 一句话说明 + 复现命令。
+                ### 派发时必做
+
+                1. 任务书**自包含**（输入路径、约束、期望格式都写清）
+                2. 明确**领域 skill**（需要文献就写 `lit-search-strategy`，需要绘图就写 `sci-figure-kit`）
+                3. 要求**三行证据**
+
+                ### 预设选择
+
+                - 要独立上下文、干净起点 → `spawn`（可指定 `agentPreset`）
+                - 要继承主线决策 → `fork`（继承父预修订，**不能**另选预设）
+                - 互不依赖的多个活 → 同一批并发派
 
                 ## 通道纪律
-                跨层只走：文件路径 + 判决 + 证据指针。
+
+                - 跨层只走：**文件路径 + 判决 + 证据指针**。
+                - 子代理回三行：`改了什么` / `凭什么说对（命令与输出）` / `最不确定的一点`。
+                - 你只查第三条。
           - id: agent-instructions
             name: '@deepseek-ai/dsh-agent-instructions'
             config:
@@ -410,6 +308,10 @@
                   provider: spawn
                   toolName: subagent
                   modelSelectionSettings: true
+                  # 允许模型在派发时选择子代理预设（为将来扩展留口）
+                  allowedAgentPresets:
+                    - greenfield
+                    - brownfield
               - id: tool-subagent-fork
                 name: '@deepseek-ai/dsh-tool-subagent'
                 config:
@@ -421,274 +323,3 @@
                   provider: spawn
               - id: tool-workflow
                 name: '@deepseek-ai/dsh-tool-workflow'
-
-    # ══════════════════════════════════════════════════════
-    # Writer —— 写作档：论文正文、综述、润色。
-    # ══════════════════════════════════════════════════════
-    - id: preset-writer
-      name: '@deepseek-ai/dsh-agent-preset'
-      config:
-        id: writer
-        name: Writer
-        description: 写作档：论文正文、综述、润色。
-        order: 13
-        plugins:
-          - id: persona
-            name: '@deepseek-ai/dsh-persona'
-            config:
-              prefix: |-
-                你是 {{model}} 驱动的**学术写作代理**。写正文、综述、润色，不写营销文案。
-
-                ## 常驻判据
-                1. **每个论断要有出处**：引用、数据、或明确标为"作者观点"。
-                2. **不改事实**：润色只改表达，不改结论与数据。
-                3. **结构先于辞藻**：逻辑链断了，再漂亮也没用。
-                4. **术语一致**：同一概念全文同一个词，不换着说。
-                5. **写进文件**：长文一律落盘，不贴在对话里。
-
-                ## 失败模式（写作类常见错）
-                - 编造引用（hallucinated citation）—— 最严重。
-                - 润色时悄悄改了数值或结论方向。
-                - 同一概念前后用不同术语，读者困惑。
-                - 段落堆砌，没有论证推进。
-
-                ## 钩子表（领域 skill 按需安装，本包不绑定）
-                - 写论文正文 / 学术结构 → 若装有 `nature-writing`
-                - 润色 / 改写英文 → 若装有 `nature-polishing`
-                - 加引用 / 查支持文献 → 若装有 `nature-citation`
-                - 文献综述 → 若装有 `lit-review-writing`
-                - **声称完成前必过验证 → `verification-before-completion`**（本包自带）
-
-                ## 产物契约
-                - 正文：`manuscript/*.md` 或 `*.docx`
-                - 引用：`refs/*.bib` 或明确的 DOI 列表
-                回主代理：文件路径 + 字数 + 待确认项。
-
-                ## 通道纪律
-                跨层只走：文件路径 + 判决 + 证据指针。
-          - id: agent-instructions
-            name: '@deepseek-ai/dsh-agent-instructions'
-            config:
-              maxBytes: 65536
-          - id: time-context
-            name: '@deepseek-ai/dsh-time-context'
-          - id: tool-bash
-            name: '@deepseek-ai/dsh-tool-bash'
-            disabled: !!js process.platform === 'win32'
-          - id: tool-pwsh
-            name: '@deepseek-ai/dsh-tool-pwsh'
-            disabled: !!js process.platform !== 'win32'
-          - id: tool-fs
-            name: '@deepseek-ai/dsh-tool-fs'
-          - id: tool-fs-search
-            name: '@deepseek-ai/dsh-tool-fs-search'
-            config:
-              sampleOverCapGlobResults: false
-          - id: tool-jobs
-            name: '@deepseek-ai/dsh-tool-jobs'
-          - id: tool-schedule
-            name: '@deepseek-ai/dsh-tool-schedule'
-          - id: skill-filesystem
-            name: '@deepseek-ai/dsh-skill-filesystem'
-          - id: tool-skill
-            name: '@deepseek-ai/dsh-tool-skill'
-          - id: tool-ask-user
-            name: '@deepseek-ai/dsh-tool-ask-user'
-          - id: tool-todo
-            name: '@deepseek-ai/dsh-tool-todo'
-            config:
-              allowParallelInProgress: true
-          - id: tool-web
-            name: '@deepseek-ai/dsh-tool-web'
-            config:
-              fetch: true
-              searchTimeoutMs: 60000
-          - id: present
-            name: '@deepseek-ai/dsh-tool-present'
-          - id: compaction
-            name: cordis:group
-            group: true
-            isolate:
-              compaction: true
-              toolResultPruner: true
-            config:
-              - id: compaction-basic
-                name: '@deepseek-ai/dsh-compaction-basic'
-              - id: command-compact
-                name: '@deepseek-ai/dsh-command-compact'
-              - id: tool-result-pruner
-                name: '@deepseek-ai/dsh-compaction-tool-result-pruner'
-                config:
-                  thresholdChars: 8192
-                  headChars: 4096
-                  tailChars: 1024
-          - id: delegation
-            name: cordis:group
-            group: true
-            isolate:
-              workflowEngine: true
-            config:
-              - id: tool-subagent-control
-                name: '@deepseek-ai/dsh-tool-subagent-control'
-              - id: tool-subagent-list-agents
-                name: '@deepseek-ai/dsh-tool-subagent-control/list-agents'
-              - id: tool-subagent
-                name: '@deepseek-ai/dsh-tool-subagent'
-                config:
-                  provider: spawn
-                  toolName: subagent
-                  modelSelectionSettings: true
-              - id: tool-subagent-fork
-                name: '@deepseek-ai/dsh-tool-subagent'
-                config:
-                  provider: fork
-                  toolName: subagent_fork
-              - id: workflow-ptc
-                name: '@deepseek-ai/dsh-workflow-ptc'
-                config:
-                  provider: spawn
-              - id: tool-workflow
-                name: '@deepseek-ai/dsh-tool-workflow'
-
-    # ══════════════════════════════════════════════════════
-    # Delegation —— 委派指挥：倾向委派、子代理沟通、子代理复用，适合长任务/大型工程。
-    # ══════════════════════════════════════════════════════
-    - id: preset-delegation
-      name: '@deepseek-ai/dsh-agent-preset'
-      config:
-        id: delegation
-        name: Delegation
-        description: 委派指挥：倾向委派、子代理沟通、子代理复用，适合长任务/大型工程。
-        order: 20
-        plugins:
-          - id: persona
-            name: '@deepseek-ai/dsh-persona'
-            config:
-              prefix: |-
-                # 委派指挥模式（Delegation）
-
-                你是一名擅长拆解与指挥的代理。充分利用子代理与 Agent Teams，让每个独立工作向量在专属的
-                子代理上下文里并行推进，再收敛回你这里。目标是：规模越大、独立件越多，越要委派，而不是自己
-                线性硬扛。同时，子代理不是一次性的跑腿工——用过的子代理保留能力和上下文，必要时复用。
-
-                ## 委派触发规则（何时该派）
-                满足以下任一条件，优先委派，而不是自己执行：
-                - 可并发：多个子任务彼此独立，可并行推进（并行 > 串行）。
-                - 可隔离：需要独立的专注上下文、独立的工作目录或独立的工具环境。
-                - 超预算：预估步骤多、耗时或上下文巨大，子代理能把主上下文释放出来。
-                - 工程量大：涉及多文件、多阶段、需要迭代反馈的交付物。
-                当被派任务的子代理处于等待/空闲，且你会把后续步骤重新交给它时，保留它（复用），不要每次都
-                新建一个全新的空子代理。
-
-                ## 缺省不派（阈值）
-                以下情况不要为“委派而委派”：
-                - 小而快：几秒能自己做完的单一动作，直接自己做。
-                - 强耦合：步骤彼此深度依赖、无法并行，派出去只会增加来回。
-                - 深递归：子代理不应无限下钻派生孙子代理；深度超过两层，向上收敛给你判断。
-                判断标准始终是「委派是否实际降低了总成本」，而不是「用了子代理」。
-
-                ## 任务书模板（上下文统一的关键）
-                每次委派都必须用结构化任务书，明确：
-                  - 目标（做什么，完成后是什么样）
-                  - 输入（要读哪些路径/文件，或从哪接数据）
-                  - 约束（技术选型、不可改动范围、合规/权限边界）
-                  - 期望回报格式（回传结构化摘要 + 产物路径/ID，细节留在子代理上下文）
-                  - 接口契约（后续要如何复用：子代理 id/名册成员、可调用的条目）
-                回报回传时，遵循「有界输出」：只给结构摘要与产物位置，不要转储整份日志；需要细节时按 id/path
-                定向拉取，避免上下文失焦。
-
-                ## 子代理复用（用完不丢）
-                当子代理完成任务、但它的能力或上下文对后续仍有用时：
-                - 不要让父代理丢弃它；通过 Agent Teams 名册/续接路由保留它。
-                - 后续需要它再做同类或后续工作时，复用同一个子代理（续接其上下文），而不是新建。
-                - 用 state（能量/专注上下文/产物）延续，而不是用后即焚。
-                - 用 `send_message`/团队消息与活跃子代理继续协作；用 `list`/名册查看存活成员。
-                仅当确定该子代理不再需要，才停止/释放它。
-
-                ## 子代理沟通（预留能力）
-                通过 Agent Teams 使用 peer messaging 让子代理之间直接沟通；父代理保留审计与授权视角。
-                默认仍由你统筹；仅在交叉依赖需要时让子代理横向协作。
-          - id: agent-instructions
-            name: '@deepseek-ai/dsh-agent-instructions'
-            config:
-              maxBytes: 65536
-          - id: time-context
-            name: '@deepseek-ai/dsh-time-context'
-          - id: tool-bash
-            name: '@deepseek-ai/dsh-tool-bash'
-            disabled: !!js process.platform === 'win32'
-          - id: tool-pwsh
-            name: '@deepseek-ai/dsh-tool-pwsh'
-            disabled: !!js process.platform !== 'win32'
-          - id: tool-fs
-            name: '@deepseek-ai/dsh-tool-fs'
-          - id: tool-fs-search
-            name: '@deepseek-ai/dsh-tool-fs-search'
-            config:
-              sampleOverCapGlobResults: false
-          - id: tool-jobs
-            name: '@deepseek-ai/dsh-tool-jobs'
-          - id: tool-schedule
-            name: '@deepseek-ai/dsh-tool-schedule'
-          - id: skill-filesystem
-            name: '@deepseek-ai/dsh-skill-filesystem'
-          - id: tool-skill
-            name: '@deepseek-ai/dsh-tool-skill'
-          - id: tool-ask-user
-            name: '@deepseek-ai/dsh-tool-ask-user'
-          - id: tool-todo
-            name: '@deepseek-ai/dsh-tool-todo'
-            config:
-              allowParallelInProgress: true
-          - id: tool-web
-            name: '@deepseek-ai/dsh-tool-web'
-            config:
-              fetch: true
-              searchTimeoutMs: 60000
-          - id: present
-            name: '@deepseek-ai/dsh-tool-present'
-          - id: compaction
-            name: cordis:group
-            group: true
-            isolate:
-              compaction: true
-              toolResultPruner: true
-            config:
-              - id: compaction-basic
-                name: '@deepseek-ai/dsh-compaction-basic'
-              - id: command-compact
-                name: '@deepseek-ai/dsh-command-compact'
-              - id: tool-result-pruner
-                name: '@deepseek-ai/dsh-compaction-tool-result-pruner'
-                config:
-                  thresholdChars: 8192
-                  headChars: 4096
-                  tailChars: 1024
-          - id: delegation
-            name: cordis:group
-            group: true
-            isolate:
-              workflowEngine: true
-            config:
-              - id: tool-subagent-control
-                name: '@deepseek-ai/dsh-tool-subagent-control'
-              - id: tool-subagent-list-agents
-                name: '@deepseek-ai/dsh-tool-subagent-control/list-agents'
-              - id: tool-subagent
-                name: '@deepseek-ai/dsh-tool-subagent'
-                config:
-                  provider: spawn
-                  toolName: subagent
-                  modelSelectionSettings: true
-              - id: tool-subagent-fork
-                name: '@deepseek-ai/dsh-tool-subagent'
-                config:
-                  provider: fork
-                  toolName: subagent_fork
-              - id: workflow-ptc
-                name: '@deepseek-ai/dsh-workflow-ptc'
-                config:
-                  provider: spawn
-              - id: tool-workflow
-                name: '@deepseek-ai/dsh-tool-workflow'
-

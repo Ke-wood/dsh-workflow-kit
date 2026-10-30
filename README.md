@@ -1,7 +1,7 @@
 # dsh-workflow-kit
 
 > **让 AI 代理真正"会干活"，而不只是"会安排"。**
-> DeepSeek Harness 的协作方法论套件：5 个代理预设 + 7 个方法论 skill + 子代理协作基础设施。
+> DeepSeek Harness 的协作方法论套件：2 个入口模式 + 可插拔模式库 + 7 个方法论 skill + 子代理协作基础设施。
 
 [![GitHub](https://img.shields.io/badge/GitHub-Ke--wood%2Fdsh--workflow--kit-blue?logo=github)](https://github.com/Ke-wood/dsh-workflow-kit)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -19,6 +19,22 @@
 - 怎么判断"做完了"是真的做完了
 - 怎么让多个代理协作而不互相拖累
 - 怎么让上下文保持干净，不越用越糊涂
+
+### 一个关键的职责划分
+
+很多套件按「做什么行业」切分（代码档、文献档、绘图档、写作档）。这是混淆：
+
+| 层 | 职责 | 例子 |
+|---|---|---|
+| **模式**（本套件提供） | 代理**怎么工作**：判据、失败模式、验证方式 | 从零开始 / 存量深化 |
+| **prompt 层**（你的任务） | 拆任务、写任务书、**决定每个子任务需要什么领域能力** | "这个子任务要画火山图" |
+| **领域 skill**（按需装） | 具体领域知识 | `sci-figure-kit` / `literature-review-skill` |
+
+**领域是任务的属性，不是代理的身份。**
+
+一篇论文的任务里，可能同时要：先调研 → 再分析数据 → 再画图 → 再写正文。
+如果按领域切档，一个任务要来回切四次档，反而割裂。
+正确的做法是：**模式固定，领域能力随任务流动**。
 
 **目标：自我审查 + 上下文洁净。**
 
@@ -47,9 +63,9 @@
 | 变化 | 机制 |
 |---|---|
 | **声称完成必须附命令输出** | `verification-before-completion` 铁律：没当场跑过不许说通过 |
-| **改代码前先查调用方** | `code` 档判据第 3 条 |
-| **一次只做一件事，分开验证** | `code` 档判据第 6 条 |
-| **长任务自动拆解分发** | `delegation` 档 + `subagent-driven-development` |
+| **改代码前先查调用方** | `brownfield` 模式判据第 4 条 |
+| **一次只做一件事，分开验证** | 两种模式都有的判据 |
+| **长任务自动拆解分发** | `brownfield` 强委派 + `subagent-driven-development` |
 | **子代理只回三行证据** | 改了什么 / 凭什么说对 / 最不确定的一点 |
 | **进度写 ledger 文件，不怕压缩** | `subagent-driven-development` 的恢复机制 |
 | **能看见子代理在干什么** | Agent Teams 的 Web 任务板与队友导航 |
@@ -113,19 +129,46 @@
 
 ## 主要内容
 
-### 五个预设
+### 两个入口模式
 
-在 GUI 的模式/预设选择里切换，切换即换 persona 与工具面。
+预设只回答**「怎么工作」**，不回答**「做什么领域的事」**。在 GUI 里选一个即可：
 
 | preset | 什么时候用 | 核心判据 |
 |---|---|---|
-| **`code`** | **改代码、修 bug、重构、写脚本**（主力） | 能跑才算完成 · 最小改动 · 先查调用方 · 先复现再修 · 不猜 API · 一次一件事 |
-| `research` | 接手已有项目、要摸清结构再深化 | 先摸基线再谈深化 · 细节留指针 |
-| `figure` | 出图、数据可视化 | 图先有数据再有风格 · 可复现 · 中文验字形 |
-| `writer` | 写论文、润色、加引用 | 每个论断有出处 · 润色不改事实 · 术语一致 |
-| `delegation` | 长任务、大型工程、多线程推进 | 强委派 · 子代理沟通 · 子代理复用（用完不丢） |
+| **`brownfield`** | **已有能跑的基线**，要在其上调研/改造/深化（**最常用**） | 先摸基线再动手 · 最小改动 · 先查调用方 · 先复现再修 · 强委派 |
+| `greenfield` | 目标处**是空的**，要从零设计并搭建 | 先定接口再写实现 · 最小可行 · 快速验证假设 · 不过度设计 · 轻委派 |
 
-> `code` 是主力档——本包自带的方法论 skill 全是工程向的，它的钩子表能满配。
+> **判定顺序：先查 brownfield，不匹配再看 greenfield。**
+> 因为把存量项目当新项目做（重复造轮子、破坏既有约定）的代价，远高于把新项目多花几分钟确认"确实是空的"。
+
+### 模式即插件（可扩展）
+
+模式不是写死在代码里的。`modes/` 目录下每个 `.md` 就是一个模式：
+
+```
+modes/
+├── MODES.md          ← 路由表：什么情况用哪个模式
+├── brownfield.md
+├── greenfield.md
+└── <你自加的>.md      ← 加文件 + 在 MODES.md 加一行，立即生效
+```
+
+两个入口预设的 persona 都写着：**先 `read` `MODES.md` 判断实际模式，若与入口不同则按该模式执行**。
+所以即使用户选了 `brownfield` 进去，发现其实是从零开始，代理会自动切到 `greenfield` 的判据。
+
+**扩展方式**：新建 `modes/my-mode.md`，写清适用场景、判据、失败模式、委派策略、完成标准，
+在 `MODES.md` 加一行即可。**不用改代码、不用重装。**
+
+> 写模式的纪律见 `modes/MODES.md`：判据必须能改变否决行为；不写流程步骤；每模式 ≤80 行。
+
+### 领域能力不进预设
+
+文献、绘图、写作这些**领域能力**按需加载，不绑定到预设：
+
+- `skills/ROUTING.md` —— 按任务信号查该用哪个 skill
+- 派子代理时在**任务书里显式指定**（如"本任务用 `sci-figure-kit`"）
+
+这样同一个任务可以先调研、再画图、再写正文，**不用来回切档**。
 
 ### 七个 skill
 
@@ -158,7 +201,9 @@
 | `dsh-experimental-tool-agent-team` | 模型侧团队工具（`spawn_teammate` / `send_message` / `team_task_*`） |
 | `dsh-experimental-client-ui-agent-team` | Web 任务板 + teammate 导航 |
 
-配合 `delegation` 档使用：子代理可以互相沟通、任务状态可视、用完的队友保留能力可复用。
+配合两种模式使用：子代理可以互相沟通、任务状态可视、用完的队友保留能力可复用。
+
+派子代理时可指定它用哪个预设（`agentPreset` 参数），为将来扩展能力预设留了口子。
 
 ---
 
@@ -166,12 +211,13 @@
 
 ### 强烈建议用
 
-- **改存量代码**：需要"改完真跑一遍"和"别扩大 diff"
-- **修 bug**：需要先复现再修，而不是猜
-- **接手不熟的项目**：先用 `baseline-survey` 摸清基线
-- **长任务**：多步骤、要迭代、上下文会爆
-- **多线程推进**：几个互不依赖的模块要同时做
-- **不想被"已完成"糊弄**：需要证据而不是断言
+- **改存量代码**：需要"改完真跑一遍"和"别扩大 diff" → `brownfield`
+- **修 bug**：需要先复现再修，而不是猜 → `brownfield`
+- **接手不熟的项目**：先用 `baseline-survey` 摸清基线 → `brownfield`
+- **从零搭新东西**：需要先定接口、不过度设计 → `greenfield`
+- **长任务**：多步骤、要迭代、上下文会爆 → `brownfield`（强委派）
+- **多线程推进**：几个互不依赖的模块要同时做 → `brownfield` + `dispatching-parallel-agents`
+- **不想被"已完成"糊弄**：需要证据而不是断言 → 两者皆可
 
 ### 不必用
 
@@ -205,11 +251,24 @@ skills 会由 `index.js` 自动注册（`ctx.skills.registerProvider()` 扫描�
 
 ## 快速上手
 
-1. **选档**：GUI 模式选择里选 `code`
-2. **让代理先看**：让它跑 `baseline-survey` 摸清项目（首次接触时）
+1. **选入口**：GUI 模式选择里选 `brownfield`（存量项目）或 `greenfield`（从零开始）
+   —— 选错也没关系，代理会读 `MODES.md` 自行纠正
+2. **让它先看**：存量项目会先跑 `baseline-survey` 摸清结构
 3. **声明完成时要求证据**：它会自动走 `verification-before-completion`
-4. **长任务切 `delegation`**：它会把活拆开、派出去、收证据回来
+4. **长任务它会自己拆**：`brownfield` 模式强委派，会把活派出去、收三行证据回来
 5. **看进度**：侧边栏 Fleet 视图 / 任务板
+
+### 加自己的模式
+
+```bash
+# 1. 写模式文档
+vim ~/dsh-workflow-kit/modes/my-mode.md
+
+# 2. 在 MODES.md 加一行
+#    | `my-mode` | 什么时候用 | `modes/my-mode.md` |
+```
+
+不用改代码、不用重装，下次对话即生效。
 
 建议在 `~/.dsh/AGENTS.md` 加一行，让 skill 路由生效：
 
@@ -268,14 +327,19 @@ cp -r <项目>/skills/* ~/.dsh/skills/
 dsh-workflow-kit/
 ├── package.json            dsh.bundle.patch 声明
 ├── index.js                自注册 skill provider（无硬编码路径）
-├── cordis.patch.yml        5 个预设 + Agent Teams 三件套
+├── cordis.patch.yml        2 个入口预设 + Agent Teams 三件套
+├── modes/                  ★ 模式库（可扩展）
+│   ├── MODES.md            路由表：什么情况用哪个模式
+│   ├── brownfield.md       存量深化
+│   ├── greenfield.md       从零开始
+│   └── <你自加的>.md
 ├── skills/                 7 个方法论 skill + ROUTING.md
 ├── licenses/               第三方许可全文
 ├── LICENSE                 MIT
 └── THIRD-PARTY-NOTICES.md  来源与修改说明
 ```
 
-整包 **36 个文件 / 268 KB**。
+**加一个模式 = 加一个 `.md` 文件 + 在 `MODES.md` 加一行。** 不用改代码、不用重装。
 
 ## 许可
 

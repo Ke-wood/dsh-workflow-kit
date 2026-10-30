@@ -1,8 +1,8 @@
 {
   "name": "@local/dsh-workflow-kit",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
-  "description": "DSH 工作流套件：五个代理预设 + 18 个协作/学术 skill + skill 路由表。自我审查与上下文洁净。",
+  "description": "DSH 协作方法论套件：2 个入口模式（greenfield / brownfield）+ 可插拔模式库 + 7 个方法论 skill。判据常驻、路径按需、执行外包、判决可执行。",
   "type": "module",
   "keywords": [
     "deepseek-harness",
@@ -11,7 +11,8 @@
     "dsh-bundle",
     "agent-preset",
     "skills",
-    "workflow"
+    "workflow",
+    "multi-agent"
   ],
   "license": "MIT",
   "exports": {
@@ -22,6 +23,7 @@
     "index.js",
     "cordis.patch.yml",
     "skills/**",
+    "modes/**",
     "licenses/**",
     "README.md",
     "LICENSE",
