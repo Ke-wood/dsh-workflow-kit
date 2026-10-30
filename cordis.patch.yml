@@ -8,8 +8,8 @@
 # 设计：判据常驻（≤60 行）· 路径知识按需 · 执行细节外包 · 判决可执行
 
 - insert:
-    # ── 0. 本包自身：把 skills/ 目录写入 DSH_WORKFLOW_KIT_SKILLS ──
-    #    必须在 preset 之前，否则 skill-filesystem 读不到 bundledSkillDir
+    # ── 0. 本包自身：注册自带 skills/ 目录为 skill provider ──
+    #    注册自带 skills/ 目录为 provider（见 index.js），无环境变量/时序依赖
     - id: workflow-kit
       name: '@local/dsh-workflow-kit'
 
@@ -83,9 +83,6 @@
             name: '@deepseek-ai/dsh-tool-schedule'
           - id: skill-filesystem
             name: '@deepseek-ai/dsh-skill-filesystem'
-            config:
-              # 指向本包自带 skills/ 目录（由 index.js 写入该环境变量）
-              bundledSkillDir: !!js process.env.DSH_WORKFLOW_KIT_SKILLS
           - id: tool-skill
             name: '@deepseek-ai/dsh-tool-skill'
           - id: tool-ask-user
@@ -220,9 +217,6 @@
             name: '@deepseek-ai/dsh-tool-schedule'
           - id: skill-filesystem
             name: '@deepseek-ai/dsh-skill-filesystem'
-            config:
-              # 指向本包自带 skills/ 目录（由 index.js 写入该环境变量）
-              bundledSkillDir: !!js process.env.DSH_WORKFLOW_KIT_SKILLS
           - id: tool-skill
             name: '@deepseek-ai/dsh-tool-skill'
           - id: tool-ask-user
@@ -351,9 +345,6 @@
             name: '@deepseek-ai/dsh-tool-schedule'
           - id: skill-filesystem
             name: '@deepseek-ai/dsh-skill-filesystem'
-            config:
-              # 指向本包自带 skills/ 目录（由 index.js 写入该环境变量）
-              bundledSkillDir: !!js process.env.DSH_WORKFLOW_KIT_SKILLS
           - id: tool-skill
             name: '@deepseek-ai/dsh-tool-skill'
           - id: tool-ask-user
@@ -482,9 +473,6 @@
             name: '@deepseek-ai/dsh-tool-schedule'
           - id: skill-filesystem
             name: '@deepseek-ai/dsh-skill-filesystem'
-            config:
-              # 指向本包自带 skills/ 目录（由 index.js 写入该环境变量）
-              bundledSkillDir: !!js process.env.DSH_WORKFLOW_KIT_SKILLS
           - id: tool-skill
             name: '@deepseek-ai/dsh-tool-skill'
           - id: tool-ask-user
@@ -627,9 +615,6 @@
             name: '@deepseek-ai/dsh-tool-schedule'
           - id: skill-filesystem
             name: '@deepseek-ai/dsh-skill-filesystem'
-            config:
-              # 指向本包自带 skills/ 目录（由 index.js 写入该环境变量）
-              bundledSkillDir: !!js process.env.DSH_WORKFLOW_KIT_SKILLS
           - id: tool-skill
             name: '@deepseek-ai/dsh-tool-skill'
           - id: tool-ask-user
