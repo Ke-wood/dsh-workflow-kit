@@ -1,7 +1,10 @@
 # dsh-workflow-kit
 
-> 给 DeepSeek Harness 的工作流套件：**四档代理预设 + 17 个协作/学术 skill + skill 路由表**。
+> 给 DeepSeek Harness 的工作流套件：**5 个代理预设 + 18 个协作/学术 skill + skill 路由表**。
 > 目标：**自我审查 + 上下文洁净**——判据常驻（极短）、路径知识按需、执行细节外包、判决可执行。
+
+[![GitHub](https://img.shields.io/badge/GitHub-Ke--wood%2Fdsh--workflow--kit-blue?logo=github)](https://github.com/Ke-wood/dsh-workflow-kit)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ## 它解决什么
 
@@ -64,7 +67,7 @@
 
 ```bash
 # 1. 把本仓库放到任意目录，例如
-git clone <repo> ~/dsh-workflow-kit
+git clone git@github.com:Ke-wood/dsh-workflow-kit.git ~/dsh-workflow-kit
 
 # 2. 安装 bundle
 #    在 DSH 里执行 plugin_manager install_bundle，target = 该目录绝对路径
