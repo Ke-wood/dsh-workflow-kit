@@ -181,19 +181,24 @@ window.__ModuleLoader__.load({
     }
 
     function Workbench(props) {
-      // 只调用「非 selector 型」的 hook：useSession / useSessions 属于
-      // SnapshotSelectorHook，必须传 selector 才有结果，误调用会让组件崩。
-      const statusRaw = props.useSessionStatus()
-      const conv = props.useConversation()
+      // 唯一数据源：useChat(selector)。
+      // 依据 dsh-context 的实测用法 —— useChat(e => e.legacy) 返回 legacy 对象，
+      // 其中含 nodes 等会话运行态；selector 返回稳定引用，不会引起无限渲染。
+      const legacy = props.useChat((s) => (isObj(s) ? s.legacy : undefined))
 
-      const status = isObj(statusRaw)
-        ? (statusRaw.status ?? statusRaw.state ?? (statusRaw.running ? 'running' : 'idle'))
-        : (typeof statusRaw === 'string' ? statusRaw : null)
+      const nodes = safe(() => legacy?.nodes, [])
+      const messages = safe(() => legacy?.messages, [])
 
-      const nodes = safe(() => conv?.nodes ?? conv?.items ?? conv?.chat?.nodes ?? [], [])
-      const messages = safe(() => conv?.messages ?? [], [])
+      const statusRaw = safe(() => legacy?.status ?? legacy?.state ?? legacy?.busy, null)
+      const status = typeof statusRaw === 'string'
+        ? statusRaw
+        : (typeof statusRaw === 'boolean' ? (statusRaw ? 'running' : 'idle') : null)
 
-      const preset = findPreset(conv, props.session)
+      const preset = safe(
+        () => legacy?.agentPreset ?? legacy?.header?.agentPreset ?? legacy?.session?.agentPreset,
+        null,
+      )
+
       const calls = collectToolCalls(nodes)
       const todos = todoSummary(lastTodo(nodes))
       const subCalls = calls.filter(
@@ -270,7 +275,7 @@ window.__ModuleLoader__.load({
     function makePanel() {
       return function Guarded(props) {
         const p = isObj(props) ? props : {}
-        const needed = ['useSessionStatus', 'useConversation']
+        const needed = ['useChat']
         const missing = needed.filter((k) => typeof p[k] !== 'function')
 
         if (missing.length) {
