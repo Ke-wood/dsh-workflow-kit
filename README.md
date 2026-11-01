@@ -1,7 +1,7 @@
 # dsh-workflow-kit
 
 > **让 AI 代理真正"会干活"，而不只是"会安排"。**
-> DeepSeek Harness 的协作方法论套件：2 个入口模式 + 可插拔模式库 + 7 个方法论 skill + 子代理协作基础设施。
+> DeepSeek Harness 的协作方法论套件：2 个入口模式 + 可插拔模式库 + 8 个方法论 skill + 任务书模板与判决契约。
 
 [![GitHub](https://img.shields.io/badge/GitHub-Ke--wood%2Fdsh--workflow--kit-blue?logo=github)](https://github.com/Ke-wood/dsh-workflow-kit)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -91,7 +91,7 @@
 
 | 层 | 装什么 | 量级 | 加载时机 |
 |---|---|---|---|
-| **L0 常驻** | 判据 · 失败模式 · 钩子表 · 通道纪律 | ≤60 行 | 每轮都在 |
+| **L0 常驻** | 判据 · 失败模式 · 通道纪律 | ≤60 行 | 每轮都在 |
 | **L1 路径知识** | 岔路口集合、决策点 | 5–10 行 | 需要时 `read` |
 | **L2 执行细节** | 命令、语法、参数 | 0 | 全部交给子代理 |
 | **L3 产物与证据** | 日志、diff、报告 | 只留指针 | 按路径取 |
@@ -105,12 +105,21 @@
 对话里的每一句话都会在后续所有轮次重复计费。所以：
 
 ```
-子代理 → 写 report.json / 产物文件
+子代理 → 写产物文件 + verdict.json
       → 回三行摘要（改了什么 / 凭什么说对 / 最不确定的一点）
 主代理 → 只读判决，不读过程
 ```
 
 主代理需要细节时，按路径 `read` 或 `grep`，而不是让子代理转述。
+
+`verdict.json` 的格式见 `checks/verdict.schema.json`，用 `checks/verify.py` 校验：
+
+```bash
+python checks/verify.py tasks/<id>/verdict.json
+```
+
+退出码：`0` 通过 / `1` 判决不合法 / `2` 打回。
+**verdict 缺失视为 fail，不是 pass** —— 沉默绝不等于通过。
 
 ### 四、判定塌缩成默认动作
 
@@ -170,7 +179,7 @@ modes/
 
 这样同一个任务可以先调研、再画图、再写正文，**不用来回切档**。
 
-### 七个 skill
+### 八个 skill
 
 **协作流程（来自 [superpowers](https://github.com/obra/superpowers)，MIT）**
 
@@ -315,7 +324,7 @@ cp -r <项目>/skills/* ~/.dsh/skills/
 | 限制 | 说明 |
 |---|---|
 | **浏览器工具无法按预设裁剪** | 34 个 `dsh_browser_*` 来自 profile 级 bundle，preset 管不到；`ctx.tools.restrict()` 要求 `agent.ctx` 作用域，preset 插件调用会抛错 |
-| **4 个超长 skill 会被裁剪** | 超过 8192 字符的 skill 正文会被 pruner 截断（保留头 4096 + 尾 1024），需要时拆分为索引 + `references/` |
+| **超长 skill 会被静默裁剪** | 超过 8192 字节的 skill 正文会被 pruner 截断（保留头 4096 + 尾 1024），**中间内容丢失且无提示**。本包所有 skill 均已控制在阈值内；安装外部 skill 时需自查 |
 | **skill 正文加载后不可撤回** | 一旦加载即进历史，只能靠 compaction 折叠 |
 | **compaction 压不动 system / tools** | 只压历史，不是"重置成空" |
 
@@ -325,21 +334,69 @@ cp -r <项目>/skills/* ~/.dsh/skills/
 
 ```
 dsh-workflow-kit/
-├── package.json            dsh.bundle.patch 声明
+├── package.json            dsh.bundle.patch 声明 + npm scripts
 ├── index.js                自注册 skill provider（无硬编码路径）
-├── cordis.patch.yml        2 个入口预设 + Agent Teams 三件套
+├── cordis.patch.yml        ⚠️ 生成物，勿手改
+├── personas/               ★ persona 源文本（改这里）
+│   ├── brownfield.txt
+│   └── greenfield.txt
+├── scripts/
+│   └── gen-patch.mjs       生成 + 校验 cordis.patch.yml
 ├── modes/                  ★ 模式库（可扩展）
 │   ├── MODES.md            路由表：什么情况用哪个模式
 │   ├── brownfield.md       存量深化
+│   ├── brownfield-delegation.md  委派细节（按需 read）
 │   ├── greenfield.md       从零开始
 │   └── <你自加的>.md
-├── skills/                 7 个方法论 skill + ROUTING.md
+├── templates/
+│   └── brief.md            ★ 任务书模板
+├── checks/
+│   ├── verdict.schema.json ★ 判决契约
+│   └── verify.py           ★ 判决校验器
+├── skills/                 8 个方法论 skill + ROUTING.md
 ├── licenses/               第三方许可全文
 ├── LICENSE                 MIT
 └── THIRD-PARTY-NOTICES.md  来源与修改说明
 ```
 
 **加一个模式 = 加一个 `.md` 文件 + 在 `MODES.md` 加一行。** 不用改代码、不用重装。
+
+### 改 persona 的正确姿势
+
+`cordis.patch.yml` 是**生成物**，手改会被下次生成覆盖：
+
+```bash
+# 1. 改源文本
+vim personas/brownfield.txt
+
+# 2. 重新生成
+npm run build:patch
+
+# 3. 校验（CI 友好，不一致退出码 1）
+npm run check:patch
+```
+
+生成器用 `import.meta.url` 定位自身，**从任何目录调用都能跑**。
+
+### 判决契约
+
+子代理交付时必须产出 `verdict.json`，主代理只读判决不读过程：
+
+```bash
+python checks/verify.py tasks/<id>/verdict.json
+```
+
+| 退出码 | 含义 |
+|---|---|
+| 0 | 通过 |
+| 1 | 判决不合法（schema 违规 / 逻辑自相矛盾） |
+| 2 | 打回 |
+| 3 | 自检未通过，**拒绝出判决** |
+
+三条硬规则：
+- **verdict 缺失 = fail**，不是 pass。沉默绝不等于通过。
+- **失败项必须有 `repro`**，否则不可信。
+- **`--selftest` 红不了就拒绝出判决**，不靠"建议先跑"的纪律。
 
 ## 许可
 

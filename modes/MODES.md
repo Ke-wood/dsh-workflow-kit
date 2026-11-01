@@ -58,10 +58,14 @@
 
 ### 预设选择
 
-| 需要 | 用什么 |
+| 需要 | 用什么工具 |
 |---|---|
-| 独立上下文、干净起点 | `spawn`（可指定 `agentPreset`） |
-| 继承主线决策 | `fork`（继承父预修订，**不能**另选预设） |
+| 独立上下文、干净起点（**默认**） | `subagent`（provider `spawn`，可用 `agentPreset` 指定预设） |
+| 继承主线决策历史 | `subagent_fork`（provider `fork`，**不能**另选预设） |
+
+> `spawn` / `fork` 是 **provider 名**，不是工具名。工具名是 `subagent` / `subagent_fork`。
+> 另有 Agent Teams 的 `spawn_teammate`（**仅 Team Lead 可调**，用于具名可复用队友）——
+> 三者不是一回事，调错会失败。
 
 ---
 
@@ -90,3 +94,4 @@
 |---|---|
 | `modes/brownfield.md` | 存量深化（强委派） |
 | `modes/greenfield.md` | 从零开始（轻委派） |
+| `modes/brownfield-delegation.md` | 存量模式的委派细节（按需 read，不是模式） |

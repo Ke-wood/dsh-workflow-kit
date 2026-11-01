@@ -10,7 +10,7 @@
 | 内容 | 说明 |
 |---|---|
 | `index.js` | 注册 skills 目录的 Host 插件 |
-| `cordis.patch.yml` | 五个 agent preset 声明 |
+| `cordis.patch.yml` | 两个 agent preset 声明（`greenfield` / `brownfield`） |
 | `skills/baseline-survey/` | 基线调研 skill |
 | `skills/kit-selftest/` | 自包含探针（仅包内存在） |
 | `skills/ROUTING.md` | skill 路由表 |
