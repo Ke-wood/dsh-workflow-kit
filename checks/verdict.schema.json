@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/Ke-wood/dsh-workflow-kit/verdict.schema.json",
   "title": "Verdict",
-  "description": "审查判决。主代理只读 pass 与 failed[].impact，不读过程。",
+  "description": "审查判决。主代理只读摘要一行；完整记录由 verify.py 落盘，按需调取。",
   "type": "object",
   "required": ["pass", "failed", "reviewed_at"],
   "additionalProperties": false,
@@ -54,6 +54,46 @@
           "command": { "type": "string" },
           "exit_code": { "type": "integer" },
           "output_tail": { "type": "string" }
+        }
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "description": "交付物白名单。声明这次交付实际产出了哪些文件；verify.py 逐个检查存在性，有 sha256 则校验内容。空数组表示不声明，verify.py 会提示该判决未经交付物核验。",
+      "items": {
+        "type": "object",
+        "required": ["path"],
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "相对 verdict 文件所在目录，或相对 --root 指定目录。"
+          },
+          "sha256": {
+            "type": "string",
+            "description": "64 位小写十六进制。提供则校验内容，不提供只校验存在。"
+          },
+          "note": {
+            "type": "string",
+            "description": "这个文件证明了什么。一句话。"
+          }
+        }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "description": "变更范围。给出 base 与 allow 后，verify.py 会跑 git diff 检查实际改动是否越界。",
+      "required": ["base", "allow"],
+      "additionalProperties": false,
+      "properties": {
+        "base": {
+          "type": "string",
+          "description": "git ref，如 HEAD、main、某个 commit。diff 从它开始算。"
+        },
+        "allow": {
+          "type": "array",
+          "description": "允许改动的路径前缀或 glob。空数组表示不允许任何改动。",
+          "items": { "type": "string" }
         }
       }
     }

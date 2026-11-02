@@ -60,12 +60,17 @@
 
 | 需要 | 用什么工具 |
 |---|---|
-| 独立上下文、干净起点（**默认**） | `subagent`（provider `spawn`，可用 `agentPreset` 指定预设） |
-| 继承主线决策历史 | `subagent_fork`（provider `fork`，**不能**另选预设） |
+| 干净起点，子代理不需要知道主线已排除的方案 | `subagent`（provider `spawn`，可用 `agentPreset` 指定预设） |
+| 需要继承主线已发生的对话与取舍 | `subagent_fork`（provider `fork`，**不能**另选预设，必然继承父 persona） |
 
+> 二者是**同一件事的两种起点**，不是两种工作方式。判据是事实问题：
+> 它需不需要知道**已经排除过的方案**、**已经定下的取舍**？需要 → fork；不需要 → subagent。
+> 详见 `brownfield-delegation.md`。
+>
 > `spawn` / `fork` 是 **provider 名**，不是工具名。工具名是 `subagent` / `subagent_fork`。
-> 另有 Agent Teams 的 `spawn_teammate`（**仅 Team Lead 可调**，用于具名可复用队友）——
-> 三者不是一回事，调错会失败。
+> 另有 Agent Teams 的 `spawn_teammate`（**仅 Team Lead 可调**）——三者不是一回事，调错会失败。
+> 委派深度上限为 2（主代理 → 子代理 → 孙代理）；`spawn_teammate` 不受此限，
+> 但 teammate 派不出执行者，这是角色限制而非深度限制。
 
 ---
 
