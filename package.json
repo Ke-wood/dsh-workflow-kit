@@ -1,6 +1,6 @@
 {
   "name": "@local/dsh-workflow-kit",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "private": true,
   "description": "DSH 协作方法论套件：2 个入口模式（greenfield / brownfield）+ 可插拔模式库 + 8 个方法论 skill + 任务书模板与判决契约。判据常驻、路径按需、执行外包、判决可执行。",
   "type": "module",
