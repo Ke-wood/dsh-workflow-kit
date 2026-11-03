@@ -71,6 +71,7 @@
           },
           "sha256": {
             "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
             "description": "64 位小写十六进制。提供则校验内容，不提供只校验存在。"
           },
           "note": {
@@ -88,7 +89,9 @@
       "properties": {
         "base": {
           "type": "string",
-          "description": "git ref，如 HEAD、main、某个 commit。diff 从它开始算。"
+          "minLength": 1,
+          "pattern": "\\S",
+          "description": "git ref，如 HEAD、main、某个 commit。diff 从它开始算。不能是纯空白。"
         },
         "allow": {
           "type": "array",

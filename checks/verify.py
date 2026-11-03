@@ -57,16 +57,39 @@ def load(path: Path) -> dict:
         fail(f"JSON 解析失败：{e}")
 
 
-def validate(v: dict) -> list[str]:
-    """返回错误列表。空列表表示合法。只查判决自身的结构与自相矛盾。"""
+SCHEMA_PATH = Path(__file__).resolve().parent / "verdict.schema.json"
+
+
+def _schema_errors(v: dict) -> list[str]:
+    """用 verdict.schema.json 做结构校验。schema 是唯一权威，避免两套实现分叉。
+
+    jsonschema 不在标准库里。装了就用它；没装则跳过结构校验，
+    并在「未核验」里如实报告——不静默降级。
+    """
+    try:
+        import jsonschema  # type: ignore
+    except ImportError:
+        return []
+
+    try:
+        schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as e:
+        return [f"schema 读取失败：{e}"]
+
+    validator = jsonschema.Draft202012Validator(schema)
     errs: list[str] = []
+    for e in sorted(validator.iter_errors(v), key=lambda x: list(x.path)):
+        loc = "/".join(str(p) for p in e.path) or "(根)"
+        errs.append(f"schema 违规 @ {loc}：{e.message}")
+    return errs
 
-    for k in ("pass", "failed", "reviewed_at"):
-        if k not in v:
-            errs.append(f"缺少必填字段：{k}")
 
-    if not isinstance(v.get("pass"), bool):
-        errs.append("pass 必须是布尔值")
+def validate(v: dict) -> list[str]:
+    """返回错误列表。空列表表示合法。
+
+    结构问题交给 schema；这里只查 schema 表达不了的**语义自相矛盾**。
+    """
+    errs: list[str] = _schema_errors(v)
 
     failed = v.get("failed")
     if not isinstance(failed, list):
@@ -81,50 +104,10 @@ def validate(v: dict) -> list[str]:
     if v.get("pass") is False and not failed:
         errs.append("pass=false 但 failed 为空——打回必须给出具体失败项")
 
+    # 没有 repro 的失败项不可信（schema 只要求存在，不要求非空）
     for i, f in enumerate(failed):
-        if not isinstance(f, dict):
-            errs.append(f"failed[{i}] 不是对象")
-            continue
-        for k in ("item", "impact", "repro"):
-            if k not in f:
-                errs.append(f"failed[{i}] 缺少 {k}")
-        if f.get("impact") not in VALID_IMPACT:
-            errs.append(f"failed[{i}].impact 必须是 {VALID_IMPACT}，实际 {f.get('impact')!r}")
-        # 没有 repro 的失败项不可信
-        if not str(f.get("repro", "")).strip():
+        if isinstance(f, dict) and "repro" in f and not str(f.get("repro", "")).strip():
             errs.append(f"failed[{i}].repro 为空——无复现方式的失败项不可信")
-
-    # artifacts 结构
-    arts = v.get("artifacts")
-    if arts is not None:
-        if not isinstance(arts, list):
-            errs.append("artifacts 必须是数组")
-        else:
-            for i, a in enumerate(arts):
-                if not isinstance(a, dict):
-                    errs.append(f"artifacts[{i}] 不是对象")
-                    continue
-                if not str(a.get("path", "")).strip():
-                    errs.append(f"artifacts[{i}].path 为空")
-                sha = a.get("sha256")
-                if sha is not None:
-                    s = str(sha)
-                    if len(s) != 64 or any(c not in "0123456789abcdef" for c in s):
-                        errs.append(f"artifacts[{i}].sha256 必须是 64 位小写十六进制")
-
-    # scope 结构
-    scope = v.get("scope")
-    if scope is not None:
-        if not isinstance(scope, dict):
-            errs.append("scope 必须是对象")
-        else:
-            for k in ("base", "allow"):
-                if k not in scope:
-                    errs.append(f"scope 缺少 {k}")
-            if not isinstance(scope.get("allow", []), list):
-                errs.append("scope.allow 必须是数组")
-            if not str(scope.get("base", "")).strip():
-                errs.append("scope.base 不能为空")
 
     return errs
 
@@ -190,7 +173,12 @@ def _git(args: list[str], cwd: Path) -> subprocess.CompletedProcess | None:
 
 
 def git_changed_files(base: str, cwd: Path) -> tuple[list[str] | None, str | None]:
-    """返回 (改动文件列表, 失败原因)。失败不当作违规，只当作未核验。"""
+    """返回 (改动文件列表, 失败原因)。失败不当作违规，只当作未核验。
+
+    所有 git 命令一律在**仓库根**执行，并让输出路径统一相对仓库根。
+    不能沿用 cwd：`git diff` 在子目录里只报告该子目录内的改动，
+    兄弟目录的改动根本看不见，会让 scope 核验被绕过。
+    """
     # 必须用 `git diff <base>`（工作区 vs base），不能用 `base...HEAD`：
     # 后者在 base=HEAD 时恒为空，会把未提交改动全部漏掉。
     top = _git(["rev-parse", "--show-toplevel"], cwd)
@@ -199,19 +187,18 @@ def git_changed_files(base: str, cwd: Path) -> tuple[list[str] | None, str | Non
     if top.returncode != 0:
         return None, f"git 仓库定位失败：{(top.stderr or '').strip()[:200]}"
     repo = (top.stdout or "").strip()
-    try:
-        prefix = str(Path(cwd).resolve().relative_to(Path(repo).resolve())).replace("\\", "/")
-    except (ValueError, OSError):
-        prefix = ""
+    if not repo:
+        return None, "git 仓库路径为空"
+    root = Path(repo)
 
-    r = _git(["diff", "--name-only", base], cwd)
+    r = _git(["diff", "--name-only", base], root)
     if r is None:
         return None, "无法执行 git diff"
     if r.returncode != 0:
         return None, f"git diff 失败：{(r.stderr or '').strip()[:200]}"
 
     # 未跟踪文件同样算改动，否则新建文件可绕过白名单
-    u = _git(["ls-files", "--others", "--exclude-standard"], cwd)
+    u = _git(["ls-files", "--others", "--exclude-standard"], root)
     untracked = [x for x in (u.stdout or "").splitlines() if x.strip()] if (u and u.returncode == 0) else []
 
     files = [x for x in (r.stdout or "").splitlines() if x.strip()]
@@ -221,15 +208,18 @@ def git_changed_files(base: str, cwd: Path) -> tuple[list[str] | None, str | Non
             files.append(f)
             seen.add(f)
 
-    # git 在子目录执行时返回的已是相对 cwd 的路径；补上 cwd 相对仓库根的层级，
-    # 使 allow 始终按仓库根路径书写，判定不随调用位置漂移。
-    if prefix:
-        files = [f if f.startswith(prefix + "/") else f"{prefix}/{f}" for f in files]
+    # 统一成相对仓库根的路径，并去掉 git 可能加上的 `./` 前缀
+    norm: list[str] = []
+    for f in files:
+        p = f.replace("\\", "/")
+        while p.startswith("./"):
+            p = p[2:]
+        norm.append(p)
 
     # 排除本脚本自己的日志目录，否则落盘记录会把判决本身判成越界
-    files = [f for f in files
-             if not f.startswith(".verdict-log/") and "/.verdict-log/" not in f]
-    return files, None
+    norm = [f for f in norm
+            if not f.startswith(".verdict-log/") and "/.verdict-log/" not in f]
+    return norm, None
 
 
 def path_allowed(path: str, allow: list[str]) -> bool:
@@ -358,6 +348,20 @@ def main() -> None:
 
     if not args:
         fail("用法：verify.py <verdict.json> [--selftest] [--root DIR] [--no-log]")
+
+    # 门禁：出任何判决前先自检。自检红不了就拒绝出判决，
+    # 这样 README 说的「不靠'建议先跑'的纪律」才是真的。
+    # 需要跳过时显式传 --no-selftest。
+    if "--no-selftest" not in argv:
+        import contextlib
+        import io
+        buf = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(buf):
+                selftest()
+        except SystemExit:
+            print("[SELFTEST FAILED] 自检未通过，拒绝出判决", file=sys.stderr)
+            sys.exit(3)
 
     verdict_path = Path(args[0])
     v = load(verdict_path)
