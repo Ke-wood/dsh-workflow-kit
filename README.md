@@ -459,6 +459,8 @@ cp -r <项目>/skills/* ~/.dsh/skills/
 
 | 限制 | 说明 |
 |---|---|
+| **工具面由 profile 决定，预设补不了** | 预设只声明自己装的插件；profile 层没注册的工具它拿不到，运行时也无法申请追加。**缺工具不等于任务做不了**——换路径（派子代理、让用户代跑） |
+| **同一插件常分多个模式组件** | 如 `dsh-ops` 有 `mode-minimal` / `mode-standard` / `mode-ptc` / `mode-cordis`，各暴露不同工具集。只启用 `shell` / `file` 这类**组件**而不启用 `mode-*`，就拿不到 `ops_bash` |
 | **浏览器工具无法按预设裁剪** | 34 个 `dsh_browser_*` 来自 profile 级 bundle，preset 管不到；`ctx.tools.restrict()` 要求 `agent.ctx` 作用域，preset 插件调用会抛错 |
 | **超长 skill 会被静默裁剪** | 超过 8192 字节的 skill 正文会被 pruner 截断（保留头 4096 + 尾 1024），**中间内容丢失且无提示**。本包所有 skill 均已控制在阈值内；安装外部 skill 时需自查 |
 | **skill 正文加载后不可撤回** | 一旦加载即进历史，只能靠 compaction 折叠 |
