@@ -54,13 +54,30 @@
 **本包不假设你装了哪些领域 skill。** 判断依据：用户发起、结果给用户看的 → 领域能力；
 你自己干活需要的 → 本表第一节。
 
+### 常见的领域能力（若已安装，按此路由）
+
+| 需求 | 加载 |
+|---|---|
+| 写论文正文 / 摘要 / 引言 / 方法 / 讨论 | `nature-writing` |
+| 润色 / 中译英 / 改写成 Nature 风格 | `nature-polishing` |
+| 写文献综述（学位论文综述章 / 期刊综述） | `lit-review-writing` |
+| 给已有正文加引用 / 找支撑文献 | `nature-citation` |
+| 期刊配图 / 数据可视化 / 火山图 / 热图 / UMAP | `sci-figure-kit` |
+
+> **区分**：`nature-writing` 是从无到有地写；`nature-polishing` 是在已有文本上改。
+> **写作用一个就够**，两者别同时加载。**绘图只加载 `sci-figure-kit`**，它内部会再路由到具体后端。
+
 ### 安装领域 skill 的两个坑
 
 | 坑 | 现象 | 解法 |
 |---|---|---|
 | **目录名含中文** | 被**静默跳过**，不报错、不提示 | 改成 `^[a-z0-9]+(?:-[a-z0-9]+)*$`，并同步 `SKILL.md` 的 `name` 字段 |
-| **正文超过 8192 字节** | 加载时**静默截断**（保留头 4096 + 尾 1024），中间内容丢失 | 拆成薄索引 + `references/`，正文控制在 8192 以内 |
+| **正文超过 8192 字符** | 加载时**静默截断**（保留头 4096 + 尾 1024），中间内容丢失 | 拆成薄索引 + `references/`，正文控制在 8192 以内 |
 
+> 阈值按**字符**（码点）计，不是字节——配置项实名 `thresholdChars`，实现用 `Array.from(text).length`。
+> 中文一个字算 1 字符但占 3 字节，**用 `wc -c` 自查会误判**：8700 字节的 skill 可能只有 5493 字符，根本没超。
+> 正确自查：`node -e "console.log(Array.from(require('fs').readFileSync('SKILL.md','utf8')).length)"`
+>
 > 第二条是本包自己踩过的坑：`systematic-debugging` 原本 9465 字节，
 > 拆成 4174 字节索引 + `references/four-phases.md` 后才不再被截断。
 
@@ -83,3 +100,6 @@
 | 接手不熟项目做深化 | `baseline-survey` → `writing-plans` → `subagent-driven-development` → `verification-before-completion` |
 | 修复杂 bug | `systematic-debugging` → `verification-before-completion` |
 | 多个独立模块同时改 | `dispatching-parallel-agents` → `verification-before-completion` |
+| 从零写一篇综述（需领域 skill） | `lit-review-writing` → `nature-polishing` |
+| 已有草稿加引用并润色（需领域 skill） | `nature-citation` → `nature-polishing` |
+| 有数据要出图发论文（需领域 skill） | `sci-figure-kit` → `nature-writing` → `nature-polishing` |
