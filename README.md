@@ -319,14 +319,6 @@ team_task_list(ready: true)    ← 返回的就是"现在能并发几路"
 
 配合两种模式使用：子代理可以互相沟通、任务状态可视、用完的队友保留能力可复用。
 
-**它装在这两个预设内部，不是全局。** 这一点是刻意的：
-
-Agent Teams 会向会话注入「你是 Team Lead」的身份和协作指令。装顶层的话，
-**所有预设的会话都会被注入**——包括那些根本不需要委派的场景，模型会倾向于
-「2+ 独立任务就派子代理」，即使自己做更省。
-
-装在预设内部后：选这两个预设才有团队工具，其他预设不受影响。
-
 派子代理时可指定它用哪个预设（`agentPreset` 参数），为将来扩展能力预设留了口子。
 
 **三种派发工具，别混用**：
@@ -470,6 +462,7 @@ cp -r <项目>/skills/* ~/.dsh/skills/
 | **工具面由 profile 决定，预设补不了** | 预设只声明自己装的插件；profile 层没注册的工具它拿不到，运行时也无法申请追加。**缺工具不等于任务做不了**——换路径（派子代理、让用户代跑） |
 | **两套命令工具并存，别混为一谈** | 本包装的是 `dsh-tool-bash` / `dsh-tool-pwsh`（Windows 下用后者），工具名是 `bash` / `pwsh`；`dsh-ops` 提供的是 `ops_bash`。两者互不替代，装哪个用哪个 |
 | **同一插件常分多个模式组件** | 如 `dsh-ops` 有 `mode-minimal` / `mode-standard` / `mode-ptc` / `mode-cordis`，各暴露不同工具集。只启用 `shell` / `file` 这类**组件**而不启用 `mode-*`，就拿不到 `ops_bash` |
+| **Agent Teams 必须装在顶层，不能放进预设** | 它的设计前提是「会话根就是 Lead」（`Every ordinary runtime root is the implicit Lead`），需要会话根的服务。挪进预设的 `plugins` 后挂载失败，`spawn_teammate` / `send_message` / `team_task_*` 全部消失。**代价是它对所有会话生效**——包括不需要委派的场景 |
 | **浏览器工具无法按预设裁剪** | 34 个 `dsh_browser_*` 来自 profile 级 bundle，preset 管不到；`ctx.tools.restrict()` 要求 `agent.ctx` 作用域，preset 插件调用会抛错 |
 | **超长 skill 会被静默裁剪** | 超过 8192 **字符**（按码点计，不是字节）的 skill 正文会被 pruner 截断（保留头 4096 + 尾 1024），**中间内容丢失且无提示**。中文正文一个字算 1 字符，但占 3 字节——按字节自查会误判 |
 | **skill 正文加载后不可撤回** | 一旦加载即进历史，只能靠 compaction 折叠 |

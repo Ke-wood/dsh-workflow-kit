@@ -47,15 +47,6 @@ const TOOLS = `          - id: agent-instructions
               maxBytes: 65536
           - id: time-context
             name: '@deepseek-ai/dsh-time-context'
-          # ── Agent Teams：装在预设内，不装全局 ──
-          # 它会向会话注入「你是 Team Lead」的身份与协作指令，
-          # 装顶层会让所有预设的会话都被注入，包括不需要委派的场景。
-          - id: agent-team
-            name: '@deepseek-ai/dsh-experimental-agent-team'
-          - id: agent-team-tool
-            name: '@deepseek-ai/dsh-experimental-tool-agent-team'
-          - id: agent-team-ui
-            name: '@deepseek-ai/dsh-experimental-client-ui-agent-team'
           - id: tool-bash
             name: '@deepseek-ai/dsh-tool-bash'
             disabled: !!js process.platform === 'win32'
@@ -160,6 +151,14 @@ let out = `# dsh-workflow-kit —— 协作方法论套件
     # ── 0. 本包自身：注册自带 skills/ ──
     - id: workflow-kit
       name: '@local/dsh-workflow-kit'
+
+    # ── 0b. Agent Teams ──
+    - id: agent-team
+      name: '@deepseek-ai/dsh-experimental-agent-team'
+    - id: agent-team-tool
+      name: '@deepseek-ai/dsh-experimental-tool-agent-team'
+    - id: agent-team-ui
+      name: '@deepseek-ai/dsh-experimental-client-ui-agent-team'
 `
 
 for (const id of MODES) {
