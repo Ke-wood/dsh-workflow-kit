@@ -2,3 +2,6 @@ node_modules/
 *.log
 .DS_Store
 cordis.patch.yml.bak
+
+# verify.py 每次出判决都会往这里落盘完整记录（checks/verify.py:315）
+.verdict-log/
