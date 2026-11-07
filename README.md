@@ -448,7 +448,7 @@ cp -r <项目>/skills/* ~/.dsh/skills/
 | 做法 | 为什么不适用 |
 |---|---|
 | **按领域切预设**（代码档 / 文献档 / 绘图档 / 写作档） | 领域是任务的属性，不是代理的身份。一个论文任务要调研 → 分析 → 画图 → 写正文，按领域切档要来回切四次，反而割裂 |
-| **用"起一个调度代理，让它再派执行者"来分层** | `spawn_teammate` 仅 Team Lead 可调，调度代理作为 teammate 派不出执行者。注意区分：`subagent` 本身**可以**再往下派一层（`maxDepth: 2`），受阻的只有 teammate 这条路径 |
+| **用"起一个调度代理，让它再派执行者"来分层** | `spawn_teammate` 仅 Team Lead 可调，调度代理作为 teammate 派不出执行者。注意区分：`subagent` 本身**可以**再往下派（当前 `maxDepth: 3`），受阻的只有 teammate 这条路径 |
 | **用规模表决定派不派**（"≥3 个子任务就派"） | 数子任务个数是容易的，但它不告诉你"能不能验收"。判据应该是"我是否已经理解到能验收" |
 | **靠 `deferLoading` 省 token** | 在非 anthropic 路径上该字段会被 strip，schema 照样下发 |
 | **按预设裁剪浏览器工具** | 那批工具来自 profile 级 bundle，预设管不到；`ctx.tools.restrict()` 要求 `agent.ctx` 作用域，预设插件调用会抛错 |

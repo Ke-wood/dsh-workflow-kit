@@ -185,16 +185,19 @@ ${TOOLS}`
 
 out += `
 # ══════════════════════════════════════════════════════
-# 委派深度：主代理(0) → 子代理(1) → 孙代理(2)
-# maxDepth 是绝对深度上限。默认 1 时子代理无法再派生；这里设为 2，
-# 允许再往下派一层，到此为止。
-# 注意：spawn_teammate 不受此限——它只允许 Team Lead 调用，
-# teammate 派不出执行者，这与 maxDepth 无关。
+# 委派上限：深度与并发是两套独立限制
+#   maxDepth          绝对深度，主代理(0) → 子(1) → 孙(2) → 曾孙(3)
+#   maxActiveSubagents 整棵激活树共享的活跃池，根代理不占名额
+#
+# 3/24 的容量：每层派 2 个 → 2+4+8=14（够用）；每层派 3 个 → 39（超池报错）。
+# 若 profile 也声明了同 id 的 subagent 条目，**profile 覆盖本文件**。
+# 调法与容量表见 modes/brownfield-delegation.md「两个上限」一节。
 # ══════════════════════════════════════════════════════
 - id: subagent
   name: '@deepseek-ai/dsh-subagent'
   config:
-    maxDepth: 2
+    maxDepth: 3
+    maxActiveSubagents: 24
 `
 
 const checkMode = process.argv.includes('--check')

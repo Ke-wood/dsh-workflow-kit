@@ -227,8 +227,8 @@
                 **探索可以委派，交付必须可验收。** 派出去产生结果前，我必须已经能验收。
                 这条禁止最典型的退化动作：**"我不懂，所以我派出去"**。
 
-                子任务互相独立时，**你自己并发派**。**子代理可以再往下派一层**（`maxDepth: 2`），
-                但只有一层：主代理 → 执行者 → 孙代理，到此为止。
+                子任务互相独立时，**你自己并发派**。可派到第 3 层，但**并发池全树共享 24 个**：
+                每层派 2 个用 14，派 3 个要 39 会报错（不排队，直接 `ACTIVATION_LIMIT_REACHED`）。
                 > `spawn_teammate` 是例外：仅 Team Lead 可调，teammate 派不出执行者。横向沟通用任务板。
 
                 **派发用哪个**：`subagent`（从零）还是 `subagent_fork`（继承对话）——只看一个事实：
@@ -335,13 +335,16 @@
                 name: '@deepseek-ai/dsh-tool-workflow'
 
 # ══════════════════════════════════════════════════════
-# 委派深度：主代理(0) → 子代理(1) → 孙代理(2)
-# maxDepth 是绝对深度上限。默认 1 时子代理无法再派生；这里设为 2，
-# 允许再往下派一层，到此为止。
-# 注意：spawn_teammate 不受此限——它只允许 Team Lead 调用，
-# teammate 派不出执行者，这与 maxDepth 无关。
+# 委派上限：深度与并发是两套独立限制
+#   maxDepth          绝对深度，主代理(0) → 子(1) → 孙(2) → 曾孙(3)
+#   maxActiveSubagents 整棵激活树共享的活跃池，根代理不占名额
+#
+# 3/24 的容量：每层派 2 个 → 2+4+8=14（够用）；每层派 3 个 → 39（超池报错）。
+# 若 profile 也声明了同 id 的 subagent 条目，**profile 覆盖本文件**。
+# 调法与容量表见 modes/brownfield-delegation.md「两个上限」一节。
 # ══════════════════════════════════════════════════════
 - id: subagent
   name: '@deepseek-ai/dsh-subagent'
   config:
-    maxDepth: 2
+    maxDepth: 3
+    maxActiveSubagents: 24
