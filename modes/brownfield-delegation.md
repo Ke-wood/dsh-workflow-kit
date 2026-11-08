@@ -50,53 +50,74 @@ team_task_list(ready: true)    ← 返回的就是"现在能并发几路"
 
 **不同质就新建。** 复用不同质的任务是负收益——它带着旧上下文看新问题，更容易套错模板。
 
-### 怎么知道子代理做完没有
+### 关键：`subagent` 联系不上
 
-**不要判断，去问。** 这是本节最重要的一条。
+**这是最容易踩的坑，必须先说。**
 
-`list_agents` 给出的状态是 `running` / `inactive`，而源码明确写着：
+Agent Teams 和 legacy 控制工具**同名冲突**。源码：
 
+> `It replaces legacy subagent controls with the same tool names, so compositions that need both must disable the legacy definitions.`
+
+本包两套都装了，**Team 版赢了**。后果：
+
+| 你想做 | `spawn_teammate` 的 | `subagent` 派的 |
+|---|---|---|
+| `list_agents` 看得到 | ✅ | ❌ |
+| `send_message` 能联系 | ✅ | ❌ **报 not found** |
+| `wait_agent` 能等 | ✅ | ❌ |
+| `interrupt_agent` 能打断 | ✅ | ❌ |
+
+**不是子代理挂了，是工具看不见它。** Team 版只认 roster，`subagent` 不在 roster 里。
+
+### 所以：先决定要不要中途干预
+
+```
+这个任务，我中途可能需要查进度 / 传话 / 打断吗？
+├── 会 → spawn_teammate（可查可问可等可打断）
+└── 不会，一次性跑完就行 → subagent（更轻，但派完只能等通知）
+```
+
+**判断依据是「不确定性」**：任务书里没把握的地方越多，越该用 `spawn_teammate`。
+
+### `spawn_teammate` 的代价
+
+| 代价 | 说明 |
+|---|---|
+| 仅 Team Lead 可调 | 子代理派不出孙代理，深链断在这里 |
+| 没有 fork | `subagent_fork` 是 subagent 专有的 provider，Team 没有 |
+| 需要名字 | 名字永久占用，不可复用、不可删 |
+
+### 用 `subagent` 时怎么判断做完没有
+
+**只能等完成通知**，这是可靠机制：
+
+> `The parent receives a completion notice when the background activation settles`
+
+**不要用 `inactive` 判断。** 源码：
+
+> `running` = executing a turn; `inactive` = no turn executing
 > `neither status describes task completion or outcome`
 
 `inactive` 有三种可能：正在两次工具调用之间、真的做完了、刚被唤醒还没开始。
-**从状态看不出是哪种。**
 
-所以主代理看到 `inactive` 就认定「它没干活」，然后自己重做一遍——这是真实的浪费。
+**所以对 `subagent`**：
 
-**正确做法：发一条具体的消息，让机制回答。**
+- ✅ 等通知
+- ❌ 不要轮询 `list_agents`（看不到）
+- ❌ 不要试图 `send_message`（会报 not found）
+- ⚠️ 通知迟迟不来，只能自己重做——**这是用 `subagent` 要承担的风险**
 
-```
-send_message(子代理, "t3 的任务书写完了吗？写完回 done，没写完说卡在哪")
-```
-
-| 结果 | 含义 | 该怎么做 |
-|---|---|---|
-| **发送失败**（明确报「未送达」） | 子代理确实失效 | 这时才自己重做 |
-| **发送成功** | 它活着，会被唤醒回话 | 等回复，别重做 |
-
-**为什么这个判据可靠**：`send_message` 的成败只有两种，而 `inactive` 有三种含义。
-**两种比三种好判断。**
-
-**注意三点**：
-
-1. **发送成功 ≠ 有产出**。源码：`The call returns only acceptance ... never a reply`。
-   它只保证消息送达，不保证对方会回。等不到回复就再问一次，两次都没反应才自己重做。
-2. **问要问具体**。问「你还在吗」它可能回「在」但什么也没做；
-   问「t3 写完没？写完回 done，没写完说卡在哪」才能拿到有用信息。
-3. **完成通知本来就可靠**，不必常规轮询：
-   `The parent receives a completion notice when the background activation settles`。
-   上面的询问只用于「你怀疑它没动静」时。
-
-**`wait_agent` 等不到子代理**：它只观察 Team 成员（`spawn_teammate` 创建的那些），
-`subagent` 不在 Team roster 里。
+**要避免这个风险，就用 `spawn_teammate`。**
 
 ## 四、工具选择
 
-| 需要 | 用什么 |
-|---|---|
-| 独立上下文、干净起点（**默认**） | `subagent`（provider `spawn`，可指定 `agentPreset`） |
-| 继承主线决策历史 | `subagent_fork`（provider `fork`，不能另选预设） |
-| 具名、可复用、能横向沟通的队友 | `spawn_teammate`（**仅 Team Lead 可调**） |
+**先问一个问题：中途可能要干预吗？** 这比「要不要继承上下文」更优先。
+
+| 需要 | 用什么 | 能中途干预吗 |
+|---|---|---|
+| 可能要查进度、传话、打断 | `spawn_teammate`（**仅 Team Lead 可调**） | ✅ |
+| 一次性跑完，不需要干预 | `subagent`（provider `spawn`，可指定 `agentPreset`） | ❌ |
+| 需要它知道主线的取舍 | `subagent_fork`（provider `fork`，不能另选预设） | ❌ |
 
 > `spawn` / `fork` 是 **provider 名**，不是工具名。工具名是 `subagent` / `subagent_fork`。
 > **调错会失败，失败后最常见的退化动作就是"放弃委派、自己干"** —— 这是角色退化的一条隐藏成因。
