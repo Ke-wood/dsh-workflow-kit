@@ -197,3 +197,4 @@ flowchart LR
 - [ ] 完成事件只带路径与状态，不带内容
 - [ ] 决策层读的是 `verdict.json`，不是原料
 - [ ] 打回时带上 `critique.md` 路径，不是内容
+
