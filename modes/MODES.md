@@ -84,8 +84,12 @@
 >
 > `spawn` / `fork` 是 **provider 名**，不是工具名。工具名是 `subagent` / `subagent_fork`。
 > 另有 Agent Teams 的 `spawn_teammate`（**仅 Team Lead 可调**）——三者不是一回事，调错会失败。
-> 委派深度上限为 2（主代理 → 子代理 → 孙代理）；`spawn_teammate` 不受此限，
-> 但 teammate 派不出执行者，这是角色限制而非深度限制。
+> 委派深度上限由 `subagent.maxDepth` 决定（当前 3：主代理 0 → 子代理 1 → 孙 2 → 曾孙 3）；
+> `spawn_teammate` 不受此限，但仅 Lead 可调——teammate 不能用它建同伴，**仍可用 `subagent` 派执行者**。
+>
+> **协作者**：长任务里可以让 Lead 建一个 teammate 专门管「写任务书 / 派发跟踪 / 汇总」，
+> 自己专注核心工作。职责与工具边界见 `roles/coordinator.md`。
+> 存量模式按需建（三条判据见 `brownfield-delegation.md` 第二节末），从零模式只在范围定死后建。
 
 ---
 

@@ -55,8 +55,8 @@
 ### 三条硬规则
 
 1. **探索可以委派，交付必须可验收** —— 禁止"我不懂所以我派出去"
-2. **并发派，不要造中间层** —— `spawn_teammate` 仅 Team Lead 可调，teammate 派不出执行者。
-   注意区分：`subagent` 本身可再往下派一层（`maxDepth: 2`），受限的只是 teammate 这条路径
+2. **并发派，不要造中间层** —— `spawn_teammate` 仅 Team Lead 可调；受限的只是这条路径。
+   注意区分：`subagent` 可再往下派（`maxDepth: 3`），teammate 也能用 `subagent` 派执行者
 3. **fork 还是 subagent，看事实不看权衡** —— 它需不需要知道已排除的方案、已定下的取舍？
    需要 → `subagent_fork`；不需要 → `subagent`
 4. **复用已有子代理要满足三条** —— "任务同质 + 结论要用 + 状态未过期"

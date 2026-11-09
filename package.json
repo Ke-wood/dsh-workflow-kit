@@ -30,6 +30,7 @@
     "cordis.patch.yml",
     "skills/**",
     "modes/**",
+    "roles/**",
     "templates/**",
     "checks/**",
     "personas/**",
