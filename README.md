@@ -374,6 +374,20 @@ skills 会由 `index.js` 自动注册（`ctx.skills.registerProvider()` 扫描�
 
 能加载即说明包内 skill provider 生效（该 skill 只存在于包内，不在 `~/.dsh/skills`）。
 
+### 可选配套插件
+
+| 插件 | 作用 |
+|---|---|
+| [`dsh-subagent-tools`](https://github.com/Ke-wood/dsh-subagent-tools) | 补上 `subagent` 的可观测与可等待：`subagent_status` / `subagent_wait` / `subagent_tell` |
+| [`dsh-skill-panel`](https://github.com/Ke-wood/dsh-skill-panel) | 技能包工作台：侧边栏面板管理技能包 |
+
+**为什么需要 `dsh-subagent-tools`**：装了 Agent Teams 之后，`list_agents` / `send_message` /
+`wait_agent` 这三个名字被 Team 版接管，而 Team 版只认 roster 成员。用 `subagent` 派出的子代理
+**看不到、联系不上、`wait_agent` 永远返回 noProgress**。
+
+一个真实会话里，主代理因此空转 26 次 `wait_agent` + 50 次读文件大小猜进度。
+装了这个插件，`subagent` 才真正可查可等可发。
+
 ---
 
 ## 快速上手

@@ -66,7 +66,9 @@
 - **派之前**先看形状（`brownfield-delegation.md` 第六节）：平铺就平铺派，分块才分组长。
 - **容量**：全树共享 24 个池，根父级不占名额，**你占 1 个**。超池直接 `ACTIVATION_LIMIT_REACHED`，不排队。
 - **深度**：Lead 是 0，你是 1，你的执行者是 2，再往下是 3（上限）。
-- **`subagent` 派完只能等通知**。没有进度查询、没有中途干预。要能干预的活，让 Lead 用 `spawn_teammate` 自己派。
+- **`subagent` 派完用 `subagent_wait` 等**（装了 `dsh-subagent-tools` 时）；没装就等完成通知。
+  **不要**调 `wait_agent`（Team 版只认 roster，对 subagent 永远 noProgress），
+  **不要**反复读文件大小猜进度。要中途传话用 `subagent_tell`。
 - **超过 2 轮还没产出**，向 Lead 报告「卡住了 + 卡在哪」，不要自己重派。
 
 **什么时候用任务板（`team_task_*`）**：只在一种情况——**要派 ≥8 个执行者**时。

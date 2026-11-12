@@ -244,11 +244,10 @@
 
                 **派发用哪个**：`subagent`（从零）还是 `subagent_fork`（继承对话）——只看一个事实：
                 它需不需要知道**已经排除过的方案**、**已经定下的取舍**？需要 → fork；不需要 → subagent。
-                **Agent Teams 覆盖了 legacy 同名工具**：`send_message` / `list_agents` 只认 Team 成员，
-                **`subagent` 派出的子代理联系不上、看不到、也 interrupt 不了**。
-                所以：**要中途能干预的活 → `spawn_teammate`**（可查、可问、可等、可打断）；
-                一次性的、不需要干预的 → `subagent`（更轻，但派完只能等通知，联系不上）。
-                > 别对 `subagent` 用 `send_message`——会报 not found，不是它挂了，是工具看不见它。
+                **Agent Teams 覆盖了 legacy 同名工具**：`send_message` / `list_agents` / `wait_agent` 只认 Team 成员，
+                **`subagent` 派出的子代理用这三个工具看不到、联系不上、也等不到**（`wait_agent` 对 subagent 永远返回 noProgress）。
+                用 subagent 时改用本包配套的 `subagent_status` / `subagent_wait` / `subagent_tell`（走 `ctx.subagents`，实测可查可等可发）。
+                > 没有这三个工具时：`subagent` 派完**不要**调 `wait_agent`、**不要**反复读文件大小猜进度——去做下一件事，完成通知会自动到。
                 **复用已有子代理**：只有"任务同质 + 结论要用 + 状态未过期"三条同时满足，才复用。
                 **自己留下**：架构级取舍、跨模块接口变更、风险区改动（`risks.md` 标红的）。
                 **派发时必做**：① 任务书自包含；② 写明该用哪些领域能力；③ 要求三行证据。

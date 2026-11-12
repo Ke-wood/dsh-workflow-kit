@@ -84,20 +84,51 @@ Agent Teams 和 legacy 控制工具**同名冲突**。源码：
 |---|---|---|
 | `list_agents` 看得到 | ✅ | ❌ |
 | `send_message` 能联系 | ✅ | ❌ **报 not found** |
-| `wait_agent` 能等 | ✅ | ❌ |
+| `wait_agent` 能等 | ✅ | ❌ **永远 noProgress** |
 | `interrupt_agent` 能打断 | ✅ | ❌ |
 
 **不是子代理挂了，是工具看不见它。** Team 版只认 roster，`subagent` 不在 roster 里。
+
+### 装 `dsh-subagent-tools` 补上这个缺口
+
+上面的限制来自**工具名被 Team 版占用**，不是 `ctx.subagents` 没能力。
+`@local/dsh-subagent-tools` 插件注册了三个新名字的工具，直接走 `ctx.subagents`：
+
+| 工具 | 作用 | 底层 |
+|---|---|---|
+| `subagent_status` | 列出全部子代理（running/inactive、label、mode、父子） | `listChildren` / `listDescendants` |
+| `subagent_wait` | **真的等**子代理结束（默认 120s，上限 600s） | `waitForChildren` |
+| `subagent_tell` | 给子代理发消息 | `sendMessage` |
+
+装了之后 `subagent` 就**可查、可等、可发**，不必为了观测能力改用 `spawn_teammate`。
+
+> **没装时**：`subagent` 派完**不要**调 `wait_agent`（对 subagent 永远 noProgress），
+> 也**不要**反复 `ops_stat` 读文件大小猜进度——去做下一件事，完成通知会自动到。
+
+### 一次真实事故（2026-11）
+
+一个 brownfield 会话派了 19 个 subagent，主代理以为 `wait_agent` 能等：
+
+```
+wait_agent 调用 26 次 → 26 次全部 noProgress
+ops_stat   调用 50 次 → 反复读文件大小猜子代理写完没有
+```
+
+主代理的思考原话是「先等子代理产出」「我继续等待，同时保持推进」——
+它不知道 `wait_agent` 看不见 subagent。**这就是装 `dsh-subagent-tools` 的理由。**
 
 ### 所以：先决定要不要中途干预
 
 ```
 这个任务，我中途可能需要查进度 / 传话 / 打断吗？
-├── 会 → spawn_teammate（可查可问可等可打断）
-└── 不会，一次性跑完就行 → subagent（更轻，但派完只能等通知）
+├── 会 → 装 dsh-subagent-tools，用 subagent_status / subagent_wait / subagent_tell
+└── 不会，一次性跑完就行 → subagent（更轻，完成通知会自动到）
 ```
 
-**判断依据是「不确定性」**：任务书里没把握的地方越多，越该用 `spawn_teammate`。
+**判断依据是「不确定性」**：任务书里没把握的地方越多，越需要观测能力。
+
+> `spawn_teammate` 仍然适合「需要长期协作、要派孙代理、要任务板」的场景；
+> 但**只为「能看见进度」而用它，代价过高**——那是 `dsh-subagent-tools` 该解决的。
 
 ### `spawn_teammate` 的代价
 
@@ -109,7 +140,17 @@ Agent Teams 和 legacy 控制工具**同名冲突**。源码：
 
 ### 用 `subagent` 时怎么判断做完没有
 
-**只能等完成通知**，这是可靠机制：
+**装了 `dsh-subagent-tools` → 用 `subagent_wait`**，这是真正能等的机制：
+
+```
+subagent_wait({ timeoutMs: 120000 })
+→ { joined, timedOut, remaining, rows }
+```
+
+它调 `ctx.subagents.waitForChildren(parent)`，等到后代都停下或超时才返回。
+实测：派两个子代理（25s / 40s），`subagent_wait` 返回后两条完成消息才到。
+
+**没装 → 只能等完成通知**，这是可靠但被动的机制：
 
 > `The parent receives a completion notice when the background activation settles`
 
@@ -122,12 +163,13 @@ Agent Teams 和 legacy 控制工具**同名冲突**。源码：
 
 **所以对 `subagent`**：
 
-- ✅ 等通知
-- ❌ 不要轮询 `list_agents`（看不到）
-- ❌ 不要试图 `send_message`（会报 not found）
-- ⚠️ 通知迟迟不来，只能自己重做——**这是用 `subagent` 要承担的风险**
-
-**要避免这个风险，就用 `spawn_teammate`。**
+- ✅ 有 `subagent_wait` 就等它
+- ✅ 没有就等完成通知，期间**去做下一件独立的事**
+- ❌ 不要调 `wait_agent`（Team 版，对 subagent 永远 noProgress）
+- ❌ 不要轮询 `list_agents`（Team 版看不到）
+- ❌ 不要反复 `ops_stat` 读文件大小猜进度（猜不准，还烧上下文）
+- ❌ 不要试图 `send_message`（会报 not found）；用 `subagent_tell`
+- ⚠️ 通知迟迟不来且没装工具，只能自己重做——**这是裸用 `subagent` 要承担的风险**
 
 ## 四、工具选择
 
