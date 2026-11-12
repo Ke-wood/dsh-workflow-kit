@@ -38,19 +38,20 @@
 子任务互相独立时，**你自己并发派**。可派到第 3 层，但**并发池全树共享 24 个**：
 每层派 2 个用 14，派 3 个要 39 会报错（不排队，直接 `ACTIVATION_LIMIT_REACHED`）。
 **派之前先看形状**：平铺就平铺派（≤16）、分块才用组长、超过 24 分波。容量表见 `modes/brownfield-delegation.md`。
-> `spawn_teammate` 仅 Team Lead 可调；受限的只是这条路径。teammate 仍可用 `subagent` 派执行者（实测可派），横向沟通用任务板。
+**fork 还是 subagent**：它需不需要知道**已排除的方案**、**已定的取舍**？需要 → `subagent_fork`；不需要 → `subagent`。
 
-**派发用哪个**：`subagent`（从零）还是 `subagent_fork`（继承对话）——只看一个事实：
-它需不需要知道**已经排除过的方案**、**已经定下的取舍**？需要 → fork；不需要 → subagent。
-**Agent Teams 覆盖了 legacy 同名工具**：`send_message` / `list_agents` / `wait_agent` 只认 Team 成员，
-**`subagent` 派出的子代理用这三个工具看不到、联系不上、也等不到**（`wait_agent` 对 subagent 永远返回 noProgress）。
-用 subagent 时改用本包配套的 `subagent_status` / `subagent_wait` / `subagent_tell`（走 `ctx.subagents`，实测可查可等可发）。
-> 没有这三个工具时：`subagent` 派完**不要**调 `wait_agent`、**不要**反复读文件大小猜进度——去做下一件事，完成通知会自动到。
-**复用已有子代理**：只有"任务同质 + 结论要用 + 状态未过期"三条同时满足，才复用。
+## 分工：协调者用 Team，执行者用 subagent
+
+`send_message` / `list_agents` / `wait_agent` 只认 Team 成员，看不见 `subagent`。所以分工固定：**要派 ≥3 个执行者 → 先 `spawn_teammate` 建协调者**，把派发交给它；否则自己做或直接派 1–2 个。
+> `maxMembers: 16` 且名字永久占用——**每会话最多建 1 个协调者**。职责见 `roles/coordinator.md`
+> （派发时给路径 + 「先读它」）；它用 `subagent` 派执行者，用 `subagent_status`/`_wait`/`_tell` 观测。
+> **Lead 自己不派执行者。**
+
+**复用**：任务同质 + 结论要用 + 状态未过期，三条同时满足才复用。
 **自己留下**：架构级取舍、跨模块接口变更、风险区改动（`risks.md` 标红的）。
-**派发时必做**：① 任务书自包含；② 写明该用哪些领域能力；③ 要求三行证据。
-**任务书 >15 份别自己写**：先分 A/B 类（同构走参数化，异构派撰写者）；撰写者 8 份一批复用，审核者一份一个；让它们只回 `✓`，三条约束缺一不可。
-**协作者（可选）**：长任务里可 `spawn_teammate` 建协调者，交出「写任务书/派发跟踪/汇总」，你专注核心工作。职责见 `roles/coordinator.md`，派发时给路径 + 「先读它」。模板、可派清单、fork 细则、判决契约、批量撰写与审核见 `modes/brownfield-delegation.md`。
+**派发必做**：① 任务书自包含；② 写明领域能力；③ 要求三行证据。
+**任务书 >15 份别自己写**：分 A/B 类；撰写者 8 份一批复用，审核者一份一个；只回 `✓`，三条约束缺一不可。
+> 模板、可派清单、fork 细则、判决契约、批量撰写与审核见 `modes/brownfield-delegation.md`。
 
 ## 通道纪律
 
