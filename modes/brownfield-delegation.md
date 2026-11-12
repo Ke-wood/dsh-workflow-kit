@@ -97,7 +97,7 @@ Agent Teams 和 legacy 控制工具**同名冲突**。源码：
 | 工具 | 作用 | 底层 |
 |---|---|---|
 | `subagent_status` | 列出全部子代理（running/inactive、label、mode、父子） | `listChildren` / `listDescendants` |
-| `subagent_wait` | **真的等**子代理结束（默认 120s，上限 600s） | `waitForChildren` |
+| `subagent_wait` | **真的等**子代理结束（默认 120s，上限 600s） | 轮询 `ctx.agents.get(id).status` |
 | `subagent_tell` | 给子代理发消息 | `sendMessage` |
 
 装了之后 `subagent` 就**可查、可等、可发**，不必为了观测能力改用 `spawn_teammate`。
@@ -144,11 +144,17 @@ ops_stat   调用 50 次 → 反复读文件大小猜子代理写完没有
 
 ```
 subagent_wait({ timeoutMs: 120000 })
-→ { joined, timedOut, remaining, rows }
+→ { joined, timedOut, remaining, rows, note }
 ```
 
-它调 `ctx.subagents.waitForChildren(parent)`，等到后代都停下或超时才返回。
-实测：派两个子代理（25s / 40s），`subagent_wait` 返回后两条完成消息才到。
+它**轮询 `ctx.agents.get(id).status`**，等到全部 idle 或超时才返回。
+
+> 为什么不用 `ctx.subagents.waitForChildren`：那个方法只遍历 `resident`
+> （内存中的活跃 activation）表，子代理在两次工具调用之间会短暂离开该表，
+> 此时它立刻返回。实测：子代理跑 60 秒命令，`waitForChildren` 版本 11 秒
+> 就返回；轮询版本等满 66 秒。**所以插件用轮询，不用那个方法。**
+
+实测：派子代理跑 `sleep 60`，`subagent_wait` 等满 66 秒，完成消息随后才到。
 
 **没装 → 只能等完成通知**，这是可靠但被动的机制：
 
