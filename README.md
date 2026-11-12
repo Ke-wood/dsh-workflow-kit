@@ -378,15 +378,23 @@ skills 会由 `index.js` 自动注册（`ctx.skills.registerProvider()` 扫描�
 
 | 插件 | 作用 |
 |---|---|
-| [`dsh-subagent-tools`](https://github.com/Ke-wood/dsh-subagent-tools) | 补上 `subagent` 的可观测与可等待：`subagent_status` / `subagent_wait` / `subagent_tell` |
+| [`dsh-agent-hub`](https://github.com/Ke-wood/dsh-agent-hub) | **推荐**：`hub_spawn` / `hub_list` / `hub_wait` / `hub_tell`，一套工具同时管 teammate 和 subagent |
+| [`dsh-subagent-tools`](https://github.com/Ke-wood/dsh-subagent-tools) | 早期方案：`subagent_status` / `subagent_wait` / `subagent_tell`，只补 subagent 侧 |
 | [`dsh-skill-panel`](https://github.com/Ke-wood/dsh-skill-panel) | 技能包工作台：侧边栏面板管理技能包 |
 
-**为什么需要 `dsh-subagent-tools`**：装了 Agent Teams 之后，`list_agents` / `send_message` /
-`wait_agent` 这三个名字被 Team 版接管，而 Team 版只认 roster 成员。用 `subagent` 派出的子代理
-**看不到、联系不上、`wait_agent` 永远返回 noProgress**。
+**为什么需要 `dsh-agent-hub`**：DSH 两套子代理体系互相看不见——
 
-一个真实会话里，主代理因此空转 26 次 `wait_agent` + 50 次读文件大小猜进度。
-装了这个插件，`subagent` 才真正可查可等可发。
+| 体系 | 派出方式 | 谁能看见它 |
+|---|---|---|
+| legacy | `subagent` | 只有 legacy 版 `list_agents` |
+| Team | `spawn_teammate` | 只有 Team 版 `list_agents` |
+
+两者同名，谁装上谁赢，赢的那个只认自己那一半。实测一个会话派了 19 个 subagent，
+`list_agents` 只返回 `lead` 一行；主代理以为没派出去，空转 26 次 `wait_agent` +
+50 次读文件大小猜进度。
+
+`dsh-agent-hub` 用 `hub_` 前缀另起一套，**不覆盖原装工具**，一张表列出全部代理，
+`hub_wait` 是真正的 join（实测对跑 55 秒的子代理等满 65 秒）。
 
 ---
 
